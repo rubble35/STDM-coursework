@@ -27,9 +27,6 @@ library(caret)
 library(rnn)
 
 
-# Set working directory
-setwd("C:/Users/reeve/OneDrive/Documents/Masters 2021-22/CEGE0042 Spatio-Temporal Data Analysis and Data Mining/Coursework/Data/Rainfall/UK Rainfall")
-
 
 
 ## 1 IMPORT THE DATA
@@ -41,7 +38,7 @@ setwd("C:/Users/reeve/OneDrive/Documents/Masters 2021-22/CEGE0042 Spatio-Tempora
 # The period covered is January 1836 to December 2021.
 
 # Read geodatabase and set CRS using a proj4string
-uk_rain_raw <- readOGR(dsn="UK Rainfall.gdb", layer="uk_rain_all_districts", 
+uk_rain_raw <- readOGR(dsn="Data/UK Rainfall.gdb", layer="uk_rain_all_districts", 
                         p4s = CRS("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs")@projargs)
 
 # Dataframe has 10 elements/features: 1 for each district region of the UK as defined by the MetOffice.
@@ -56,6 +53,15 @@ uk_rain <- subset(uk_rain_raw, select = -c(Shape_Length, Shape_Area))
 rain_matrix <- data.matrix(uk_rain@data[,-c(1)])
 rownames(rain_matrix) <- uk_rain@data[,"REGION"]
 
+# Visualise the data for one region by way of example
+plot(rain_matrix[1,], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, 1836 to 2021")
+# Very long time series, so hard to see detail of any patterns or trends.
+# Look at a shorter time period
+plot(rain_matrix[1, 1969:2232], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, Jan 2000 to Dec 2021")
+# Would expect a seasonal trend, and it looks like there is one, but it is noisy
+# Have a look at another region
+plot(rain_matrix[6, 1969:2232], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for East Anglia region, Jan 2000 to Dec 2021")
+# Also looks quite noisy, with significant variation between max and min and from year to year
 
 # 1.2 Monthly UK Rainfall Records for Historic UK Weather Stations
 
@@ -63,7 +69,7 @@ rownames(rain_matrix) <- uk_rain@data[,"REGION"]
 # The stations have latitude, longitude and altitude data, i.e. they are point locations rather than areas
 # Data goes back to 1855 for some stations, but most stations have full records going back only to 1960's.
 # Data imported for analysis is monthly for the period Sep 1964 to Aug 2016 (624 months), but just for 29 stations that have a full record in this timeframe.
-uk_station <- read.csv("rainfall_by_station.csv")
+uk_station <- read.csv("Data/rainfall_by_station.csv")
 
 # Rename first column to remove strange characters at front
 colnames(uk_station)[1] <- "Station"
@@ -71,16 +77,25 @@ colnames(uk_station)[1] <- "Station"
 # Create a matrix excluding the station name, lat, long and altitude columns
 station_matrix <- data.matrix(uk_station[,-c(1:4)])
 
-# Create a vector containing the station names
+# Create a vector containing the station names and add to matrix
 station <- as.vector(uk_station[,c(1)], mode="any")
+rownames(station_matrix) <- station
+
+# Visualise the data for one weather station by way of example
+plot(station_matrix[1,], type="l", xlab="Index (months)", ylab="Rainfall (mm)", main="Average Monthly Rainfall for Aberporth, 1965 to 2015")
 
 # Also bring in file containing annual average rainfall for the same 29 weather stations for period 1965 to 2015
 # And rename columns and create a data matrix
-uk_station_annual <- read.csv("station_annual_ave.csv")
+uk_station_annual <- read.csv("Data/station_annual_ave.csv")
 colnames(uk_station_annual)[1] <- "Station"
 colnames(uk_station_annual)[5:ncol(uk_station_annual)] <- as.character(c(1965:2015))
 station_annual_matrix <- data.matrix(uk_station_annual[,-c(1:4)])
+rownames(station_annual_matrix) <- station
 
+# Visualise the data for one weather station by way of example
+plot(station_annual_matrix[1,], type="l", xlab="Index (years)", ylab="Rainfall (mm)", main="Average Annual Rainfall for Aberporth, 1965 to 2015")
+# Create column averages and plot to see any trends in average annual rainfall for whole of UK
+plot(colMeans(station_annual_matrix), type="l", xlab="Index (years)", ylab="Rainfall (mm)", main="Average Annual Rainfall for all UK Weather Stations, 1965 to 2015")
 
 
 ## 2 EXPLORATORY SPATIO-TEMPORAL DATA ANALYSIS AND VISUALISATION
@@ -89,9 +104,19 @@ station_annual_matrix <- data.matrix(uk_station_annual[,-c(1:4)])
 
 # Mean and standard deviation
 mean_rain <- mean(rain_matrix)
+mean_scotland_n <- mean(rain_matrix[1,])
+mean_scotland_e <- mean(rain_matrix[2,])
+mean_scotland_w <- mean(rain_matrix[3,])
+mean_england_e_ne <- mean(rain_matrix[4,])
+mean_england_nw_n_wales <- mean(rain_matrix[5,])
+mean_midlands <- mean(rain_matrix[6,])
+mean_e_anglia <- mean(rain_matrix[7,])
+mean_s_wales_england_sw <- mean(rain_matrix[8,])
+mean_england_se_central_s <- mean(rain_matrix[9,])
+mean_n_ireland <- mean(rain_matrix[10,])
 mean_station <- mean(station_matrix)
-mean_rain
-mean_station
+mean_rain   # Mean monthly rainfall for all UK regions across all years
+mean_station    # Mean monthly rainfall recorded at UK selected weather stations across all years
 sd_rain <- sd(rain_matrix)
 sd_station <- sd(station_matrix)
 sd_rain
@@ -112,6 +137,9 @@ qqline(rain_matrix, col="red", lwd=3)
 qqnorm(station_matrix)
 qqline(station_matrix, col="red", lwd=3)
 
+
+# 2.2 Examining Spatial Characteristics
+
 # Scatterplot Matrix
 pairs(~LONG+LAT+ALT+rowMeans(station_matrix),data=uk_station,main="Simple Scatterplot Matrix for Rainfall at UK Weather Stations")
 # bottom left plot hints at a relationship between longitude and rainfall - further west, higher rainfall
@@ -123,60 +151,6 @@ scatterplot3d(x=uk_station$LONG, y=uk_station$LAT, z=rowMeans(station_matrix), m
 scatter3D(uk_station$LONG, uk_station$LAT, rowMeans(station_matrix), main="3D Scatter of Rainfall at UK Weather Stations", xlab="Longitude", ylab="Latitude", zlab="Average Monthly Rainfall in mm")
 plot3d(uk_station$LONG, uk_station$LAT, rowMeans(station_matrix), main="Dynamic 3D Plot of Rainfall at UK Weather Stations", xlab="Longitude", ylab="Latitude", zlab="Average Monthly Rainfall in mm")
 # 3D plot confirms that there appears to be a relationship between latitude, longitude and rainfall, in that the further north and west, the higher the average monthly rainfall
-
-
-# 2.2. Examining Temporal Characteristics
-
-# First examine the average monthly rainfall, both on the regional dataset and the individual station dataset
-# Regional dataset, monthly granularity, 186 years, average rainfall across all regions
-plot(colMeans(rain_matrix), xlab="Year (monthly data)", ylab="Rainfall in mm", type="l", xaxt="n", main="Average UK Monthly Rainfall 1836-2021")
-axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Suggest using annual averages?
-
-
-# Station dataset, monthly granularity, 52 years, average rainfall across all weather stations
-plot(colMeans(station_matrix), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1965-2015")
-axis(1, at=seq(5, 605, 120), labels=seq(1965, 2015, 10))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Hint of a seasonal pattern
-# Try looking at a shorter time range: 1995-2015
-plot(colMeans(station_matrix[,384:624]), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1995-2015")
-axis(1, at=seq(1, 241, 60), labels=seq(1995, 2015, 5))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Looks like a potentially seasonal pattern
-# Suggest using annual averages:
-plot(colMeans(station_annual_matrix), xlab="Year", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Annual Rainfall for Selected UK Weather Stations 1965-2015")
-axis(1, at=seq(1,51,10), labels=seq(1965, 2015, 10))
-# Possible trend of increased rainfall with time, but extent of variation from year to year dominates
-
-# Create Lattice Plot for 10 selected stations that cover all parts of the UK
-# Rainfall to be dependent variable
-# Month of the year (MMM.YY) the independent variable
-station_melt <- melt(uk_station, id.vars=1:4, measure.vars = 5:ncol(uk_station))
-colnames(station_melt)[5:6] <- c("MMMYY", "Rainfall")
-station.chosen=c("Aberporth","Armagh","Bradford","Braemar","Cambridge","Oxford","Yeovilton","Lowestoft","Lerwick","Durham")
-s <- station_melt[station %in% station.chosen,]
-xyplot(Rainfall ~ MMMYY | Station, xlab = "MMM.YY", type ="l",
-       layout = c(5,2),
-       data = s,
-       main = "Monthly Rainfall at Selected UK Weather Stations 1965-2015")
-# No obvious trends here either
-# Data possibly too granular
-# Use annual averages instead
-station_annual_melt <- melt(uk_station_annual, id.vars=1:4, measure.vars = 5:ncol(uk_station_annual))
-colnames(station_annual_melt)[5:6] <- c("Year", "Rainfall")
-sam <- station_annual_melt[station %in% station.chosen,]
-xyplot(Rainfall ~ Year | Station, xlab = "Year", type ="l",
-       layout = c(5,2),
-       data = sam,
-       main = "Annual Average Rainfall at Selected UK Weather Stations 1965-2015")
-# Data easier to interpret than monthly data, but still no consistent temporal trends
-# Some hint at slightly increased rainfall over time, e.g.Braemar
-
-
-
-# 2.3 Examining Spatial Characteristics
 
 # Heatmap
 heatmap(station_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station", main="Heatmap of Rainfall at UK Weather Stations, Unordered", cexCol=1.1,y.scale.components.subticks(n=10))
@@ -199,14 +173,12 @@ last_year <- cbind(uk_station_annual[1:4], uk_station_annual$"2015")
 colnames(last_year)[5] <- "Ave.Rainfall"
 last_year[,2:3] <- projectMercator(last_year$LAT, last_year$LONG)
 
-
 map <- openmap(c(49,-11), c(61,3), type='esri-topo')
 autoplot.OpenStreetMap(map) +
   geom_point(data = last_year, aes(x = LONG, y = LAT, color = Ave.Rainfall, size = Ave.Rainfall)) +
   ggtitle("Annual Average Rainfall in UK, 2015") +
   scale_color_gradient(low="lightblue", high="darkblue")
 # Definitely shows higher rainfall in the north and west. Drier to the east and away from the coast.
-
 
 # Going back to the regional data
 # Create breaks that can be used consistently in each map based on entire data set
@@ -301,6 +273,58 @@ tmap_arrange(jan84, feb84, mar84, apr84, may84, jun84, jul84, aug84, sep84, oct8
 # This is in line with expectations based on knowledge of the south-westerly prevailing weather pattern in the UK, which brings rain in from the Atlantic and the central hills and mountains of England and Scotland create a rain shadow effect to the east
 # Looking just at 1984, there is an indication of seasonality with more rain in the autumn/winter than spring/summer.
 # Needs investigating further to see if this is a pattern that bears out across more/all years in the study.
+
+
+# 2.3. Examining Temporal Characteristics
+
+# First examine the average monthly rainfall, both on the regional dataset and the individual station dataset
+# Regional dataset, monthly granularity, 186 years, average rainfall across all regions
+plot(colMeans(rain_matrix), xlab="Year (monthly data)", ylab="Rainfall in mm", type="l", xaxt="n", main="Average UK Monthly Rainfall 1836-2021")
+axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
+# No obvious trends - data too dense to really see - significant variation across the months within a year
+# Suggest using annual averages?
+
+# Station dataset, monthly granularity, 52 years, average rainfall across all weather stations
+plot(colMeans(station_matrix), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1965-2015")
+axis(1, at=seq(5, 605, 120), labels=seq(1965, 2015, 10))
+# No obvious trends - data too dense to really see - significant variation across the months within a year
+# Hint of a seasonal pattern
+# Try looking at a shorter time range: 1995-2015
+plot(colMeans(station_matrix[,384:624]), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1995-2015")
+axis(1, at=seq(1, 241, 60), labels=seq(1995, 2015, 5))
+# No obvious trends - data too dense to really see - significant variation across the months within a year
+# Looks like a potentially seasonal pattern
+# Suggest using annual averages:
+plot(colMeans(station_annual_matrix), xlab="Year", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Annual Rainfall for Selected UK Weather Stations 1965-2015")
+axis(1, at=seq(1,51,10), labels=seq(1965, 2015, 10))
+# Possible trend of increased rainfall with time, but extent of variation from year to year dominates
+
+# Create Lattice Plot for 10 selected stations that cover all parts of the UK
+# Rainfall to be dependent variable
+# Month of the year (MMM.YY) the independent variable
+station_melt <- melt(uk_station, id.vars=1:4, measure.vars = 5:ncol(uk_station))
+colnames(station_melt)[5:6] <- c("MMMYY", "Rainfall")
+station.chosen=c("Aberporth","Armagh","Bradford","Braemar","Cambridge","Oxford","Yeovilton","Lowestoft","Lerwick","Durham")
+s <- station_melt[station %in% station.chosen,]
+xyplot(Rainfall ~ MMMYY | Station, xlab = "MMM.YY", type ="l",
+       layout = c(5,2),
+       data = s,
+       main = "Monthly Rainfall at Selected UK Weather Stations 1965-2015")
+# No obvious trends here either
+# Data possibly too granular
+# Use annual averages instead
+station_annual_melt <- melt(uk_station_annual, id.vars=1:4, measure.vars = 5:ncol(uk_station_annual))
+colnames(station_annual_melt)[5:6] <- c("Year", "Rainfall")
+sam <- station_annual_melt[station %in% station.chosen,]
+xyplot(Rainfall ~ Year | Station, xlab = "Year", type ="l",
+       layout = c(5,2),
+       data = sam,
+       main = "Annual Average Rainfall at Selected UK Weather Stations 1965-2015")
+# Data easier to interpret than monthly data, but still no consistent temporal trends
+# Some hint at slightly increased rainfall over time, e.g.Braemar
+
+
+
 
 
 ## 3 SPATIO-TEMPORAL DEPENDENCE AND AUTOCORRELATION
