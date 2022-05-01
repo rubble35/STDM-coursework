@@ -20,7 +20,6 @@ library(gstat)
 library(OpenStreetMap)
 library(raster)
 library(spacetime)
-library(knitr)
 library(forecast)
 library(nnet)
 library(caret)
@@ -54,13 +53,17 @@ rain_matrix <- data.matrix(uk_rain@data[,-c(1)])
 rownames(rain_matrix) <- uk_rain@data[,"REGION"]
 
 # Visualise the data for one region by way of example
-plot(rain_matrix[1,], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, 1836 to 2021")
+par(mar = c(5, 5, 4, 2) + 0.1)
+plot(rain_matrix[1,], type="l", xaxt="n", xlab="Year (monthly data)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, 1836 to 2021")
+axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
 # Very long time series, so hard to see detail of any patterns or trends.
 # Look at a shorter time period
-plot(rain_matrix[1, 1969:2232], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, Jan 2000 to Dec 2021")
+plot(rain_matrix[1, 1969:2232], type="l", xaxt="n", xlab="Year (monthly data)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, Jan 2000 to Dec 2021")
+axis(1, at=seq(1, 264, 24), labels=seq(2000, 2020, 2))
 # Would expect a seasonal trend, and it looks like there is one, but it is noisy
 # Have a look at another region
-plot(rain_matrix[6, 1969:2232], type="l", xlab="Index (months)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for East Anglia region, Jan 2000 to Dec 2021")
+plot(rain_matrix[6, 1969:2232], type="l", xaxt="n", xlab="Year (monthly data)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for East Anglia region, Jan 2000 to Dec 2021")
+axis(1, at=seq(1, 264, 24), labels=seq(2000, 2020, 2))
 # Also looks quite noisy, with significant variation between max and min and from year to year
 
 # 1.2 Monthly UK Rainfall Records for Historic UK Weather Stations
@@ -82,7 +85,8 @@ station <- as.vector(uk_station[,c(1)], mode="any")
 rownames(station_matrix) <- station
 
 # Visualise the data for one weather station by way of example
-plot(station_matrix[1,], type="l", xlab="Index (months)", ylab="Rainfall (mm)", main="Average Monthly Rainfall for Aberporth, 1965 to 2015")
+plot(station_matrix[1,], type="l", xaxt="n", xlab="Year (monthly data)", ylab="Rainfall (mm)", main="Average Monthly Rainfall for Aberporth, 1965 to 2015")
+axis(1, at=seq(5, 605, 60), labels=seq(1965, 2015, 5))
 
 # Also bring in file containing annual average rainfall for the same 29 weather stations for period 1965 to 2015
 # And rename columns and create a data matrix
@@ -93,9 +97,11 @@ station_annual_matrix <- data.matrix(uk_station_annual[,-c(1:4)])
 rownames(station_annual_matrix) <- station
 
 # Visualise the data for one weather station by way of example
-plot(station_annual_matrix[1,], type="l", xlab="Index (years)", ylab="Rainfall (mm)", main="Average Annual Rainfall for Aberporth, 1965 to 2015")
+plot(station_annual_matrix[1,], type="l", xaxt="n", xlab="Year", ylab="Rainfall (mm)", main="Average Annual Rainfall for Aberporth, 1965 to 2015")
+axis(1, at=seq(1, 51, 5), labels=seq(1965, 2015, 5))
 # Create column averages and plot to see any trends in average annual rainfall for whole of UK
-plot(colMeans(station_annual_matrix), type="l", xlab="Index (years)", ylab="Rainfall (mm)", main="Average Annual Rainfall for all UK Weather Stations, 1965 to 2015")
+plot(colMeans(station_annual_matrix), type="l", xaxt="n", xlab="Year", ylab="Rainfall (mm)", main="Average Annual Rainfall for all UK Weather Stations, 1965 to 2015")
+axis(1, at=seq(1, 51, 5), labels=seq(1965, 2015, 5))
 
 
 ## 2 EXPLORATORY SPATIO-TEMPORAL DATA ANALYSIS AND VISUALISATION
@@ -123,12 +129,14 @@ sd_rain
 sd_station
 
 # Histograms
-hist(rain_matrix, col="lightblue", xlab="Monthly Rainfall in mm")
+hist(rain_matrix, col="lightblue", xlab="Monthly Rainfall in mm", main="Histogram of UK Regional Monthly Rainfall")
 abline(v=mean_rain, col="red", lwd=3)
+text(120, 3849, "Mean = 88.55")
 # Shows positive skew, bounded by zero (cannot have -ve rainfall)
 
-hist(station_matrix, col="lightgreen", xlab="Monthly Rainfall in mm")
+hist(station_matrix, col="lightgreen", xlab="Monthly Rainfall in mm", main="Histogram of UK Weather Station Monthly Rainfall")
 abline(v=mean_station, col="red", lwd=3)
+text(120, 7650, "Mean = 70.20")
 # Shows positive skew, bounded by zero (cannot have -ve rainfall)
 
 # Q-Q Plots
@@ -138,9 +146,58 @@ qqnorm(station_matrix)
 qqline(station_matrix, col="red", lwd=3)
 
 
-# 2.2 Examining Spatial Characteristics
+# 2.2. Examining Temporal Characteristics
 
-# Scatterplot Matrix
+# First examine the average monthly rainfall, both on the regional dataset and the individual station dataset
+# Regional dataset, monthly granularity, 186 years, average rainfall across all regions
+plot(colMeans(rain_matrix), xlab="Year (monthly data)", ylab="Rainfall in mm", type="l", xaxt="n", main="Average UK Monthly Rainfall 1836-2021")
+axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
+# No obvious trends - data too dense to really see - significant variation across the months within a year
+# Suggest using annual averages?
+
+# Station dataset, monthly granularity, 52 years, average rainfall across all weather stations
+plot(colMeans(station_matrix), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1965-2015")
+axis(1, at=seq(5, 605, 120), labels=seq(1965, 2015, 10))
+# No obvious trends - data too dense to really see - significant variation across the months within a year
+# Hint of a seasonal pattern
+# Try looking at a shorter time range: 2005-2015
+plot(colMeans(station_matrix[,504:624]), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 2005-2015")
+axis(1, at=seq(1, 121, 12), labels=seq(2005, 2015, 1))
+# No obvious long-term trend - significant variation across the months within a year
+# Looks like a potentially seasonal pattern
+# Suggest using annual averages:
+plot(colMeans(station_annual_matrix), xlab="Year", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Annual Rainfall for Selected UK Weather Stations 1965-2015")
+axis(1, at=seq(1,51,5), labels=seq(1965, 2015, 5))
+# Possible trend of increased rainfall with time, but extent of variation from year to year dominates
+
+# Create Lattice Plot for 10 selected stations that cover all parts of the UK
+# Rainfall to be dependent variable
+# Month of the year (MMM.YY) the independent variable
+station_melt <- melt(uk_station, id.vars=1:4, measure.vars = 5:ncol(uk_station))
+colnames(station_melt)[5:6] <- c("MMMYY", "Rainfall")
+station.chosen=c("Aberporth","Armagh","Bradford","Braemar","Cambridge","Oxford","Yeovilton","Lowestoft","Lerwick","Durham")
+s <- station_melt[station %in% station.chosen,]
+xyplot(Rainfall ~ MMMYY | Station, xlab = "MMM.YY", type ="l",
+       layout = c(5,2),
+       data = s,
+       main = "Monthly Rainfall at Selected UK Weather Stations Sep 1965 to Aug 2016")
+# No obvious trends here either, although possible increase over time seen in Lerwick?
+# Data possibly too granular
+# Use annual averages instead
+station_annual_melt <- melt(uk_station_annual, id.vars=1:4, measure.vars = 5:ncol(uk_station_annual))
+colnames(station_annual_melt)[5:6] <- c("Year", "Rainfall")
+sam <- station_annual_melt[station %in% station.chosen,]
+xyplot(Rainfall ~ Year | Station, xlab = "Year", type ="l",
+       layout = c(5,2),
+       data = sam,
+       main = "Annual Average Rainfall at Selected UK Weather Stations 1965-2015")
+# Data easier to interpret than monthly data, but still no consistent temporal trends
+# Some hint at slightly increased rainfall over time, e.g.Lerwick and Braemar
+
+
+# 2.3 Examining Spatial Characteristics
+
+# Scatterplot Matrix for UK Weather Stations
 pairs(~LONG+LAT+ALT+rowMeans(station_matrix),data=uk_station,main="Simple Scatterplot Matrix for Rainfall at UK Weather Stations")
 # bottom left plot hints at a relationship between longitude and rainfall - further west, higher rainfall
 # furthest right plot on second row also hints at a relationship between latitude and rainfall - further south, lower rainfall
@@ -150,20 +207,20 @@ pairs(~LONG+LAT+ALT+rowMeans(station_matrix),data=uk_station,main="Simple Scatte
 scatterplot3d(x=uk_station$LONG, y=uk_station$LAT, z=rowMeans(station_matrix), main="3D Scatterplot of Rainfall at UK Weather Stations by Longitude and Latitude", xlab="Longitude", ylab="Latitude", zlab="Average Monthly Rainfall in mm")
 scatter3D(uk_station$LONG, uk_station$LAT, rowMeans(station_matrix), main="3D Scatter of Rainfall at UK Weather Stations", xlab="Longitude", ylab="Latitude", zlab="Average Monthly Rainfall in mm")
 plot3d(uk_station$LONG, uk_station$LAT, rowMeans(station_matrix), main="Dynamic 3D Plot of Rainfall at UK Weather Stations", xlab="Longitude", ylab="Latitude", zlab="Average Monthly Rainfall in mm")
-# 3D plot confirms that there appears to be a relationship between latitude, longitude and rainfall, in that the further north and west, the higher the average monthly rainfall
+# 3D plot confirms that there appears to be a relationship between latitude, longitude and rainfall, in that the further north and west, the higher the average monthly rainfall. But pattern is not clear
 
 # Heatmap
-heatmap(station_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station", main="Heatmap of Rainfall at UK Weather Stations, Unordered", cexCol=1.1,y.scale.components.subticks(n=10))
+heatmap(station_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station", main="Heatmap of Rainfall at UK Weather Stations, Unordered", cexCol=1.1, y.scale.components.subticks(n=10))
 # Shows that there is not much spatial or temporal variation, as each row shows similar colour variation
 # Try ordering stations by latitude to see if that shows anything
 station_latorder <- uk_station[order(uk_station$LAT, decreasing=FALSE),]
 station_latorder_matrix <- data.matrix(station_latorder[,5:ncol(uk_station)])
-heatmap(station_latorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station (N at the top, S at the bottom)", main="Heatmap of Rainfall at UK Weather Stations, Ordered by Latitude", cexCol=1.1,y.scale.components.subticks(n=10))
+heatmap(station_latorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station (N at the top, S at the bottom)", main="Heatmap of Rainfall at UK Weather Stations, Ordered by Latitude", cexCol=1.1, y.scale.components.subticks(n=10))
 # Definitely shows pinker colours (most rainfall) at the top (highest latitudes), i.e. furthest north
 # Try ordering by longitude as well
-station_longorder <- uk_station[order(uk_station$LONG, decreasing=FALSE),]
+station_longorder <- uk_station[order(uk_station$LONG, decreasing=TRUE),]
 station_longorder_matrix <- data.matrix(station_longorder[,5:ncol(uk_station)])
-heatmap(station_longorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station (E at the top, W at the bottom)", main="Heatmap of Rainfall at UK Weather Stations, Ordered by Longitude",cexCol=1.1,y.scale.components.subticks(n=10))
+heatmap(station_longorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station (W at the top, E at the bottom)", main="Heatmap of Rainfall at UK Weather Stations, Ordered by Longitude",cexCol=1.1, y.scale.components.subticks(n=10))
 # Less obvious than latitude heat map, but suggests pinker colours (most rainfall) at the bottom (lowest longitudes), i.e. furthest west
 # Station 12 is a bit of an anomaly (this is Lerwick, the furthest north by far in the Shetlands)
 # Suggests latitude is more of a factor that longitude, but this might be expected as UK has a greater N/S extent than E/W
@@ -183,7 +240,7 @@ autoplot.OpenStreetMap(map) +
 # Going back to the regional data
 # Create breaks that can be used consistently in each map based on entire data set
 brks=quantile(as.numeric(unlist(uk_rain@data[,-c(1)])), seq(0,1,1/5))
-# Produce a choropleth map of UK rainfall by region for March 1990, which is the month that shows the greatest contrast between wettest and driest region
+# Produce a choropleth map of UK rainfall by region for March 1990, which based on analysis in Excel is the month that shows the greatest contrast between wettest and driest region
 tm_shape(uk_rain) +
   tm_fill("Mar_1990", style="fixed", palette="Blues", breaks=brks) +
   tm_borders("white") +
@@ -192,7 +249,7 @@ tm_shape(uk_rain) +
   tm_scale_bar()
 # Very wet in Scotland, particularly in the N and W; dry elsewhere
 
-# Produce a choropleth map of UK rainfall by region for Nov 1907, which is the month that is closest to the overall average rainfall for each region
+# Produce a choropleth map of UK rainfall by region for Nov 1907, which based on analysis in Excel is the month that is closest to the overall average rainfall for each region
 tm_shape(uk_rain) +
   tm_fill("Nov_1907", style="fixed", palette="Blues", breaks=brks) +
   tm_borders("white") +
@@ -275,61 +332,88 @@ tmap_arrange(jan84, feb84, mar84, apr84, may84, jun84, jul84, aug84, sep84, oct8
 # Needs investigating further to see if this is a pattern that bears out across more/all years in the study.
 
 
-# 2.3. Examining Temporal Characteristics
-
-# First examine the average monthly rainfall, both on the regional dataset and the individual station dataset
-# Regional dataset, monthly granularity, 186 years, average rainfall across all regions
-plot(colMeans(rain_matrix), xlab="Year (monthly data)", ylab="Rainfall in mm", type="l", xaxt="n", main="Average UK Monthly Rainfall 1836-2021")
-axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Suggest using annual averages?
-
-# Station dataset, monthly granularity, 52 years, average rainfall across all weather stations
-plot(colMeans(station_matrix), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1965-2015")
-axis(1, at=seq(5, 605, 120), labels=seq(1965, 2015, 10))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Hint of a seasonal pattern
-# Try looking at a shorter time range: 1995-2015
-plot(colMeans(station_matrix[,384:624]), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 1995-2015")
-axis(1, at=seq(1, 241, 60), labels=seq(1995, 2015, 5))
-# No obvious trends - data too dense to really see - significant variation across the months within a year
-# Looks like a potentially seasonal pattern
-# Suggest using annual averages:
-plot(colMeans(station_annual_matrix), xlab="Year", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Annual Rainfall for Selected UK Weather Stations 1965-2015")
-axis(1, at=seq(1,51,10), labels=seq(1965, 2015, 10))
-# Possible trend of increased rainfall with time, but extent of variation from year to year dominates
-
-# Create Lattice Plot for 10 selected stations that cover all parts of the UK
-# Rainfall to be dependent variable
-# Month of the year (MMM.YY) the independent variable
-station_melt <- melt(uk_station, id.vars=1:4, measure.vars = 5:ncol(uk_station))
-colnames(station_melt)[5:6] <- c("MMMYY", "Rainfall")
-station.chosen=c("Aberporth","Armagh","Bradford","Braemar","Cambridge","Oxford","Yeovilton","Lowestoft","Lerwick","Durham")
-s <- station_melt[station %in% station.chosen,]
-xyplot(Rainfall ~ MMMYY | Station, xlab = "MMM.YY", type ="l",
-       layout = c(5,2),
-       data = s,
-       main = "Monthly Rainfall at Selected UK Weather Stations 1965-2015")
-# No obvious trends here either
-# Data possibly too granular
-# Use annual averages instead
-station_annual_melt <- melt(uk_station_annual, id.vars=1:4, measure.vars = 5:ncol(uk_station_annual))
-colnames(station_annual_melt)[5:6] <- c("Year", "Rainfall")
-sam <- station_annual_melt[station %in% station.chosen,]
-xyplot(Rainfall ~ Year | Station, xlab = "Year", type ="l",
-       layout = c(5,2),
-       data = sam,
-       main = "Annual Average Rainfall at Selected UK Weather Stations 1965-2015")
-# Data easier to interpret than monthly data, but still no consistent temporal trends
-# Some hint at slightly increased rainfall over time, e.g.Braemar
-
-
-
 
 
 ## 3 SPATIO-TEMPORAL DEPENDENCE AND AUTOCORRELATION
 
-# 3.1 Temporal Autocorrelation
+# 3.1. Spatial Autocorrelation
+
+# Build a row standardised spatial weight matrix for the UK Regions (using Queen's case)
+W <- nb2listw(poly2nb(uk_rain, queen=TRUE))
+# Error due to empty neighbour sets found
+# Test whether this is due to N.Ireland, which is not connected to rest of UK
+W <- nb2listw(poly2nb(uk_rain[1:9,], queen=TRUE))
+# Success - it was due to N.Ireland
+W
+
+# 3.1.1 Global Spatial Autocorrelation
+
+# Calculate Moran's I
+
+# This is a purely spatial index so can just take average rainfall for whole period under review
+# Need to create subset of uk_rain that excludes N.Ireland due to empty neighbour sets issue above
+gb_rain <- uk_rain[1:9,] # excluding N.Ireland
+gb_rain_matrix <- data.matrix(gb_rain@data[,-c(1)])
+gb_rain_ave <- rowMeans(gb_rain_matrix) # excluding N.Ireland
+moran(gb_rain_ave, W, n=length(W$neighbours), S0=Szero(W))
+# Gives a Moran's I value of 0.516
+
+# Test min and max values to see whether reasonable on an absolute scale
+moran.range <- function(lw) {
+  wmat <- listw2mat(lw)
+  return(range(eigen((wmat + t(wmat))/2)$values))
+}
+moran.range(W)
+# Moran range is approx -0.6 to 1.0, with mid point of approx 0.2.
+# Therefore, Moran's I of 0.516 appears significant
+
+# Test whether it is statistically significant using moran.test and moran.mc
+moran.test(x=gb_rain_ave, listw=W)
+moran.mc(x=gb_rain_ave, listw=W, nsim=9999)
+# Both tests give p-values <0.05, so can conclude that there is significant spatial autocorrelation between rainfall levels across the regions of the UK at this spatial order
+
+# 3.1.2 Local Spatial Autocorrelation
+
+# Calculate Local Moran's I for Regional data
+local_m <- localmoran(x=gb_rain_ave, listw=W)
+gb_rain$Ii <- local_m[,"Ii"]
+gb_rain$Iip_unadj <- local_m[,"Pr(z != E(Ii))"]
+gb_rain$Unadjusted_significance <- "nonsignificant"
+gb_rain$Unadjusted_significance[which(gb_rain$Iip_unadj < 0.05)] <- "significant"
+tm_shape(gb_rain) + 
+  tm_polygons(col="Unadjusted_significance", palette="-RdBu", style="quantile", lwd=0.1, border.alpha=0.1) +
+  tm_layout(main.title="Local Moran's I by Region", main.title.size=1.25, title="P-values unadjusted", title.size=1,legend.position=c("left", "top")) +
+  tm_scale_bar(width=0.25, position=c("right", "bottom")) + 
+  tm_compass(position=c("right", "top"))
+# "S Wales & England SW" and "England NW & N Wales" are the regions with the lowest local Moran values (close to zero)
+# These regions are wet regions, being in the West, but they border the driest regions, i.e. those in the south and east
+# "East Anglia" is a dry region bordering other dry regions, hence high local Moran
+# "Scotland N" is a wet region bordering other wet regions, hence high local Moran
+# "East Anglia" and "Scotland W" have significant local Moran's I based on unadjusted p-values
+
+local_m_adj <- localmoran(x=gb_rain_ave, listw=W, p.adjust.method="bonferroni")
+gb_rain$Iip_adj <- local_m_adj[,"Pr(z != E(Ii))"]
+gb_rain$Adjusted_significance <- "nonsignificant"
+gb_rain$Adjusted_significance[which(gb_rain$Iip_adj <0.05)] <- "significant"
+tm_shape(gb_rain) + 
+  tm_polygons(col="Adjusted_significance", palette="-RdBu", style="quantile", lwd=0.1, border.alpha=0.1) +
+  tm_layout(main.title="Local Moran's I by Region", main.title.size=1.25, title="P-values adjusted", title.size=1, legend.position=c("left", "top")) +
+  tm_scale_bar(width=0.25, position=c("right", "bottom")) + 
+  tm_compass(position=c("right", "top"))
+# No regions with significant local Moran's I based on adjusted p-values
+
+# Measure autocorrelation in weather station point data
+# Use average rainfall across all time periods under review as temporal variation not taken into account in semivariogram
+coords = list(projectMercator(uk_station[,3], uk_station[,2]))
+plot(variogram(list(rowMeans(station_matrix)), location=coords), cex=2, main="Semivariogram for UK Weather Station Rainfall", col="blue")
+# Result is a bit scattered, but can conclude that rainfall levels at weather stations that are closer are more similar than those further away
+
+# Consider different directions
+plot(variogram(list(rowMeans(station_matrix)), location=coords, alpha=c(0,45,90,135)), cex=1.5, main="Directional semivariograms for UK Weather Station Rainfall", col="blue")
+# Not very clear results, but hints of anisotropy in that not all semivariograms are the same
+
+
+# 3.2 Temporal Autocorrelation
 
 # Using the monthly rainfall data by region
 # Create dataframes containing lagged variables at lag of 1 month
@@ -387,7 +471,7 @@ grid.arrange(p3,p4, nrow=1)
 # Shows that annual average rainfall is weakly correlated at a lag of one year (PMCC=0.121)
 # This is not surprising as no reason to suggest that rainfall in one year is related to rainfall in previous year
 
-# 3.1.1 AutoCorrelation Factors
+# 3.2.1 AutoCorrelation Factors
 
 # Now examine AutoCorrelation Factors to see if statistically significant autocorrelation exists at different lag intervals
 # Start with Scotland N data as that showed the highest PMCC
@@ -435,7 +519,7 @@ acf(uk_station_annual_aves, main="ACF, Annual Average Rainfall for Selected UK W
 # Suggests that for the UK as a whole, average annual rainfall is random from one year to the next
 # Demonstrates stationarity
 
-# 3.1.2 Partial AutoCorrelation Factors
+# 3.2.2 Partial AutoCorrelation Factors
 
 # Examine Partial AutoCorrelation Factors for Scotland N region
 pacf(rain_matrix[1,], lag.max=50, main="PACF, Scotland N Region")
@@ -447,66 +531,6 @@ pacf(rain_matrix[1,], lag.max=50, main="PACF, Scotland N Region")
 pacf(uk_station_annual_aves, lag.max=50, main="PACF, Annual Average Rainfall for Selected UK Weather Stations")
 # No statistically significant PACF at any lags. Implies the data is random from one year to the next
 
-# 3.2. Spatial Autocorrelation
-
-# Build a row standardised spatial weight matrix for the UK Regions (using Queen's case)
-W <- nb2listw(poly2nb(uk_rain, queen=TRUE))
-# Error due to empty neighbour sets found
-# Test whether this is due to N.Ireland, which is not connected to rest of UK
-W <- nb2listw(poly2nb(uk_rain[1:9,], queen=TRUE))
-# Success - it was due to N.Ireland
-W
-
-# 3.2.1 Global Spatial Autocorrelation
-
-# Calculate Moran's I
-
-# This is a purely spatial index so can just take average rainfall for whole period under review
-# Need to create subset of uk_rain that excludes N.Ireland due to empty neighbour sets issue above
-gb_rain <- uk_rain[1:9,] # excluding N.Ireland
-gb_rain_matrix <- data.matrix(gb_rain@data[,-c(1)])
-gb_rain_ave <- rowMeans(gb_rain_matrix) # excluding N.Ireland
-moran(gb_rain_ave, W, n=length(W$neighbours), S0=Szero(W))
-# Gives a Moran's I value of 0.516
-
-# Test min and max values to see whether reasonable on an absolute scale
-moran.range <- function(lw) {
-  wmat <- listw2mat(lw)
-  return(range(eigen((wmat + t(wmat))/2)$values))
-}
-moran.range(W)
-# Moran range is approx -0.6 to 1.0, with mid point of approx 0.2.
-# Therefore, Moran's I of 0.516 appears significant
-
-# Test whether it is statistically significant using moran.test and moran.mc
-moran.test(x=gb_rain_ave, listw=W)
-moran.mc(x=gb_rain_ave, listw=W, nsim=9999)
-# Both tests give p-values <0.05, so can conclude that there is significant spatial autocorrelation between rainfall levels across the regions of the UK at this spatial order
-
-# 3.2.2 Local Spatial Autocorrelation
-
-# Calculate Local Moran's I for Regional data
-local_m <- localmoran(x=gb_rain_ave, listw=W)
-gb_rain$Ii <- local_m[,"Ii"]
-tm_shape(gb_rain) + 
-  tm_polygons(col="Ii", palette="Blues", style="quantile", lwd=0.1, border.alpha=0.1) +
-  tm_layout(main.title="Local Moran's I by Region", legend.position=c("left", "top")) +
-  tm_scale_bar(width=0.15, position=c("right", "bottom")) + 
-  tm_compass(position=c("right", "top"))
-# "S Wales & England SW" and "England NW & N Wales" are the regions with the lowest local Moran values (close to zero)
-# These regions are wet regions, being in the West, but they border the driest regions, i.e. those in the south and east
-# "East Anglia" is a dry region bordering other dry regions, hence high local Moran
-# "Scotland N" is a wet region bordering other wet regions, hence high local Moran
-
-# Measure autocorrelation in weather station point data
-# Use average rainfall across all time periods under review as temporal variation not taken into account in semivariogram
-coords = list(projectMercator(uk_station[,3], uk_station[,2]))
-plot(variogram(list(rowMeans(station_matrix)), location=coords), cex=2, main="Semivariogram for UK Weather Station Rainfall", col="blue")
-# Result is a bit scattered, but can conclude that rainfall levels at weather stations that are closer are more similar than those further away
-
-# Consider different directions
-plot(variogram(list(rowMeans(station_matrix)), location=coords, alpha=c(0,45,90,135)), cex=1.5, main="Directional semivariograms for UK Weather Station Rainfall", col="blue")
-# Not very clear results, but hints of anisotropy in that not all semivariograms are the same
 
 
 # 3.3 Spatio-Temporal Autocorrelation
