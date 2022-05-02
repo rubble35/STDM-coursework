@@ -53,6 +53,7 @@ rain_matrix <- data.matrix(uk_rain@data[,-c(1)])
 rownames(rain_matrix) <- uk_rain@data[,"REGION"]
 
 # Visualise the data for one region by way of example
+# Set parameters so that axis labels show
 par(mar = c(5, 5, 4, 2) + 0.1)
 plot(rain_matrix[1,], type="l", xaxt="n", xlab="Year (monthly data)", ylab="Monthly rainfall (mm)", main="Monthly Rainfall for Scotland N region, 1836 to 2021")
 axis(1, at=seq(49, 2209, 240), labels=seq(1840, 2020, 20))
@@ -99,16 +100,17 @@ rownames(station_annual_matrix) <- station
 # Visualise the data for one weather station by way of example
 plot(station_annual_matrix[1,], type="l", xaxt="n", xlab="Year", ylab="Rainfall (mm)", main="Average Annual Rainfall for Aberporth, 1965 to 2015")
 axis(1, at=seq(1, 51, 5), labels=seq(1965, 2015, 5))
+# Very variable from one month to the next. Possibly seasonal as there are a series of peaks and troughs
+
 # Create column averages and plot to see any trends in average annual rainfall for whole of UK
 plot(colMeans(station_annual_matrix), type="l", xaxt="n", xlab="Year", ylab="Rainfall (mm)", main="Average Annual Rainfall for all UK Weather Stations, 1965 to 2015")
 axis(1, at=seq(1, 51, 5), labels=seq(1965, 2015, 5))
+# No obvious long-term trend in average annual rainfall
 
 
-## 2 EXPLORATORY SPATIO-TEMPORAL DATA ANALYSIS AND VISUALISATION
+# 1.3 Examine non-spatio-temporal data characteristics
 
-# 2.1 Examine non-spatio-temporal data characteristics
-
-# Mean and standard deviation
+# Mean and standard deviation for regional data
 mean_rain <- mean(rain_matrix)
 mean_scotland_n <- mean(rain_matrix[1,])
 mean_scotland_e <- mean(rain_matrix[2,])
@@ -120,12 +122,14 @@ mean_e_anglia <- mean(rain_matrix[7,])
 mean_s_wales_england_sw <- mean(rain_matrix[8,])
 mean_england_se_central_s <- mean(rain_matrix[9,])
 mean_n_ireland <- mean(rain_matrix[10,])
-mean_station <- mean(station_matrix)
-mean_rain   # Mean monthly rainfall for all UK regions across all years
-mean_station    # Mean monthly rainfall recorded at UK selected weather stations across all years
 sd_rain <- sd(rain_matrix)
-sd_station <- sd(station_matrix)
+mean_rain   # Mean monthly rainfall for all UK regions across all years
 sd_rain
+
+# Mean and standard deviation for weather station data
+mean_station <- mean(station_matrix)
+sd_station <- sd(station_matrix)
+mean_station    # Mean monthly rainfall recorded at UK selected weather stations across all years
 sd_station
 
 # Histograms
@@ -146,7 +150,9 @@ qqnorm(station_matrix)
 qqline(station_matrix, col="red", lwd=3)
 
 
-# 2.2. Examining Temporal Characteristics
+## 2 EXPLORATORY SPATIO-TEMPORAL DATA ANALYSIS AND VISUALISATION
+
+# 2.1. Examining Temporal Characteristics
 
 # First examine the average monthly rainfall, both on the regional dataset and the individual station dataset
 # Regional dataset, monthly granularity, 186 years, average rainfall across all regions
@@ -160,11 +166,13 @@ plot(colMeans(station_matrix), xlab="Year (monthly data)", ylab="Rainfall (mm)",
 axis(1, at=seq(5, 605, 120), labels=seq(1965, 2015, 10))
 # No obvious trends - data too dense to really see - significant variation across the months within a year
 # Hint of a seasonal pattern
+
 # Try looking at a shorter time range: 2005-2015
 plot(colMeans(station_matrix[,504:624]), xlab="Year (monthly data)", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Monthly Rainfall for Selected UK Weather Stations 2005-2015")
 axis(1, at=seq(1, 121, 12), labels=seq(2005, 2015, 1))
 # No obvious long-term trend - significant variation across the months within a year
 # Looks like a potentially seasonal pattern
+
 # Suggest using annual averages:
 plot(colMeans(station_annual_matrix), xlab="Year", ylab="Rainfall (mm)", type="l", xaxt="n", main="Average Annual Rainfall for Selected UK Weather Stations 1965-2015")
 axis(1, at=seq(1,51,5), labels=seq(1965, 2015, 5))
@@ -183,6 +191,7 @@ xyplot(Rainfall ~ MMMYY | Station, xlab = "MMM.YY", type ="l",
        main = "Monthly Rainfall at Selected UK Weather Stations Sep 1965 to Aug 2016")
 # No obvious trends here either, although possible increase over time seen in Lerwick?
 # Data possibly too granular
+
 # Use annual averages instead
 station_annual_melt <- melt(uk_station_annual, id.vars=1:4, measure.vars = 5:ncol(uk_station_annual))
 colnames(station_annual_melt)[5:6] <- c("Year", "Rainfall")
@@ -211,7 +220,7 @@ plot3d(uk_station$LONG, uk_station$LAT, rowMeans(station_matrix), main="Dynamic 
 
 # Heatmap
 heatmap(station_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station", main="Heatmap of Rainfall at UK Weather Stations, Unordered", cexCol=1.1, y.scale.components.subticks(n=10))
-# Shows that there is not much spatial or temporal variation, as each row shows similar colour variation
+# Shows that there is not much temporal variation, as each row shows limited colour variation
 # Try ordering stations by latitude to see if that shows anything
 station_latorder <- uk_station[order(uk_station$LAT, decreasing=FALSE),]
 station_latorder_matrix <- data.matrix(station_latorder[,5:ncol(uk_station)])
@@ -225,17 +234,18 @@ heatmap(station_longorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="col
 # Station 12 is a bit of an anomaly (this is Lerwick, the furthest north by far in the Shetlands)
 # Suggests latitude is more of a factor that longitude, but this might be expected as UK has a greater N/S extent than E/W
 
-# Plot weather stations on a map - just use one year of data
-last_year <- cbind(uk_station_annual[1:4], uk_station_annual$"2015")
-colnames(last_year)[5] <- "Ave.Rainfall"
-last_year[,2:3] <- projectMercator(last_year$LAT, last_year$LONG)
-
+# Plot annual average rainfall for weather stations on a map
+ann_ave <- cbind(uk_station_annual[1:4], rowMeans(station_annual_matrix))
+colnames(ann_ave)[5] <- "Ave.Rainfall"
+ann_ave[,2:3] <- projectMercator(ann_ave$LAT, ann_ave$LONG)
 map <- openmap(c(49,-11), c(61,3), type='esri-topo')
 autoplot.OpenStreetMap(map) +
-  geom_point(data = last_year, aes(x = LONG, y = LAT, color = Ave.Rainfall, size = Ave.Rainfall)) +
-  ggtitle("Annual Average Rainfall in UK, 2015") +
+  geom_point(data = ann_ave, aes(x = LONG, y = LAT, color = Ave.Rainfall, size = Ave.Rainfall)) +
+  ggtitle("Annual Average Rainfall in UK, all years") +
   scale_color_gradient(low="lightblue", high="darkblue")
-# Definitely shows higher rainfall in the north and west. Drier to the east and away from the coast.
+# Shows wettest areas are in the north and west; drier to south and east and away from coasts
+# Eskdalemuir records most rain annually out of the 29 weather stations in the dataset
+
 
 # Going back to the regional data
 # Create breaks that can be used consistently in each map based on entire data set
@@ -323,7 +333,7 @@ dec84 <- tm_shape(year84) +
   tm_borders("white") +
   tm_legend(position=c("left", "top"), text.size=0.4)
 
-tmap_arrange(jan84, feb84, mar84, apr84, may84, jun84, jul84, aug84, sep84, oct84, nov84, dec84)
+tmap_arrange(jan84, feb84, mar84, apr84, may84, jun84, jul84, aug84, sep84, oct84, nov84, dec84) # This takes a long time to plot
 
 # These maps clearly show that (for this single year) the western and northern regions of the UK are the wettest, although N.Ireland is relatively drier than nearby W Scotland
 # The driest regions are towards the east and the south
@@ -332,11 +342,9 @@ tmap_arrange(jan84, feb84, mar84, apr84, may84, jun84, jul84, aug84, sep84, oct8
 # Needs investigating further to see if this is a pattern that bears out across more/all years in the study.
 
 
+# 2.3 Spatial and Temporal Autocorrelation
 
-
-## 3 SPATIO-TEMPORAL DEPENDENCE AND AUTOCORRELATION
-
-# 3.1. Spatial Autocorrelation
+# 2.3.1. Spatial Autocorrelation
 
 # Build a row standardised spatial weight matrix for the UK Regions (using Queen's case)
 W <- nb2listw(poly2nb(uk_rain, queen=TRUE))
@@ -346,7 +354,7 @@ W <- nb2listw(poly2nb(uk_rain[1:9,], queen=TRUE))
 # Success - it was due to N.Ireland
 W
 
-# 3.1.1 Global Spatial Autocorrelation
+# 2.3.1.1 Global Spatial Autocorrelation
 
 # Calculate Moran's I
 
@@ -372,7 +380,7 @@ moran.test(x=gb_rain_ave, listw=W)
 moran.mc(x=gb_rain_ave, listw=W, nsim=9999)
 # Both tests give p-values <0.05, so can conclude that there is significant spatial autocorrelation between rainfall levels across the regions of the UK at this spatial order
 
-# 3.1.2 Local Spatial Autocorrelation
+# 2.3.1.2 Local Spatial Autocorrelation
 
 # Calculate Local Moran's I for Regional data
 local_m <- localmoran(x=gb_rain_ave, listw=W)
@@ -402,7 +410,7 @@ tm_shape(gb_rain) +
   tm_compass(position=c("right", "top"))
 # No regions with significant local Moran's I based on adjusted p-values
 
-# Measure autocorrelation in weather station point data
+# Measure autocorrelation in weather station point data using semivariogram
 # Use average rainfall across all time periods under review as temporal variation not taken into account in semivariogram
 coords = list(projectMercator(uk_station[,3], uk_station[,2]))
 plot(variogram(list(rowMeans(station_matrix)), location=coords), cex=2, main="Semivariogram for UK Weather Station Rainfall", col="blue")
@@ -413,7 +421,7 @@ plot(variogram(list(rowMeans(station_matrix)), location=coords, alpha=c(0,45,90,
 # Not very clear results, but hints of anisotropy in that not all semivariograms are the same
 
 
-# 3.2 Temporal Autocorrelation
+# 2.3.2 Temporal Autocorrelation
 
 # Using the monthly rainfall data by region
 # Create dataframes containing lagged variables at lag of 1 month
@@ -430,16 +438,16 @@ England_SE_lagged <- data.frame(time_in_months = 1:2231, t=rain_matrix[9,][2:(nc
 N_Ireland_lagged <- data.frame(time_in_months = 1:2231, t=rain_matrix[10,][2:(ncol(rain_matrix))], t_minus_1=rain_matrix[10,][1:(ncol(rain_matrix)-1)])
 
 # Calculate PMCC based on 1 month lags
-SN_r <- round(cor(Scotland_N_lagged$t, Scotland_N_lagged$t_minus_1), 3)
-SE_r <- round(cor(Scotland_E_lagged$t, Scotland_E_lagged$t_minus_1), 3)
-SW_r <- round(cor(Scotland_W_lagged$t, Scotland_W_lagged$t_minus_1), 3)
-EENE_r <- round(cor(England_E_NE_lagged$t, England_E_NE_lagged$t_minus_1), 3)
-EWNW_r <- round(cor(England_NW_N_Wales_lagged$t, England_NW_N_Wales_lagged$t_minus_1), 3)
-M_r <- round(cor(Midlands_lagged$t, Midlands_lagged$t_minus_1), 3)
-EA_r <- round(cor(East_Anglia_lagged$t, East_Anglia_lagged$t_minus_1), 3)
-EWSW_r <- round(cor(S_Wales_England_SW_lagged$t, S_Wales_England_SW_lagged$t_minus_1), 3)
-ESE_r <- round(cor(England_SE_lagged$t, England_SE_lagged$t_minus_1), 3)
-NI_r <- round(cor(N_Ireland_lagged$t, N_Ireland_lagged$t_minus_1), 3)
+SN_r <- round(cor(Scotland_N_lagged$t, Scotland_N_lagged$t_minus_1), 3) # gives 0.306
+SE_r <- round(cor(Scotland_E_lagged$t, Scotland_E_lagged$t_minus_1), 3) # gives 0.152
+SW_r <- round(cor(Scotland_W_lagged$t, Scotland_W_lagged$t_minus_1), 3) # gives 0.280
+EENE_r <- round(cor(England_E_NE_lagged$t, England_E_NE_lagged$t_minus_1), 3) # gives 0.091
+EWNW_r <- round(cor(England_NW_N_Wales_lagged$t, England_NW_N_Wales_lagged$t_minus_1), 3) # gives 0.180
+M_r <- round(cor(Midlands_lagged$t, Midlands_lagged$t_minus_1), 3)  # gives 0.081
+EA_r <- round(cor(East_Anglia_lagged$t, East_Anglia_lagged$t_minus_1), 3) # gives 0.103
+EWSW_r <- round(cor(S_Wales_England_SW_lagged$t, S_Wales_England_SW_lagged$t_minus_1), 3) # gives 0.1178
+ESE_r <- round(cor(England_SE_lagged$t, England_SE_lagged$t_minus_1), 3)  # gives 0.127
+NI_r <- round(cor(N_Ireland_lagged$t, N_Ireland_lagged$t_minus_1), 3) # gives 0.135
 
 # Most of these PMCCs show only weak or very weak correlation at 1 month lag interval
 # Scotland N shows the highest correlation at 0.306
@@ -452,6 +460,25 @@ p2 <- ggplot(Scotland_N_lagged, aes(x=t, y=t_minus_1)) +
   annotate("text", 30, 320, label=paste("r =", SN_r))
 
 grid.arrange(p1,p2, nrow=1)
+
+# Now just plot Scotland N PMCC
+ggplot(Scotland_N_lagged, aes(x=t, y=t_minus_1)) +
+  geom_point() +
+  labs(y="t-1") +
+  geom_smooth(method="lm") +
+  annotate("text", 30, 320, label=paste("r =", SN_r))
+
+# Also try looking at 12month lag
+Scotland_N_lagged12 <- data.frame(time_in_months = 12:2231, t=rain_matrix[1,][13:(ncol(rain_matrix))], t_minus_12=rain_matrix[1,][1:(ncol(rain_matrix)-12)])
+SN_r_minus12 <- round(cor(Scotland_N_lagged12$t, Scotland_N_lagged12$t_minus_12), 3)
+ggplot(Scotland_N_lagged12, aes(x=t, y=t_minus_12)) +
+  geom_point() +
+  labs(y="t-12") +
+  geom_smooth(method="lm") +
+  annotate("text", 30, 320, label=paste("r =", SN_r_minus12))
+# PMCC of 0.331 implies stronger temporal correlation at 12 month lag than 1 month lag
+# Suggests rainfall in a given month is more similar to the same month in the previous year than in the previous month.
+# Suggests rainfall varies more month-to-month than year-to-year in Scotland N region
 
 # Next, examining annual averages by weather station
 # First create a dataset of annual averages across all weather stations
@@ -471,82 +498,11 @@ grid.arrange(p3,p4, nrow=1)
 # Shows that annual average rainfall is weakly correlated at a lag of one year (PMCC=0.121)
 # This is not surprising as no reason to suggest that rainfall in one year is related to rainfall in previous year
 
-# 3.2.1 AutoCorrelation Factors
 
-# Now examine AutoCorrelation Factors to see if statistically significant autocorrelation exists at different lag intervals
-# Start with Scotland N data as that showed the highest PMCC
-acf(rain_matrix[1,], lag.max=50, main="ACF, Scotland N Region")
-# Shows statistically significant positive autocorrelation peaks at lags of 12, 24, 36, 48 months i.e. annually
-# Shows statistically significant negative autocorrelation troughs at lags of 6, 18, 30, 42 months
-# Scotland N dataset shows seasonal pattern in rainfall
-# Scotland N data is therefore non-stationary, showing high values at fixed intervals
-# Suggests will need to include a seasonal autoregressive term in the ARIMA model
-
-acf(rain_matrix[2,], lag.max=50, main="ACF, Scotland E Region")
-# Demonstrates seasonality
-
-acf(rain_matrix[3,], lag.max=50, main="ACF, Scotland W Region")
-# Demonstrates seasonality
-
-acf(rain_matrix[4,], lag.max=50, main="ACF, England E & NE Region")
-# Demonstrates weak seasonality
-
-acf(rain_matrix[5,], lag.max=50, main="ACF, England NW & N Wales Region")
-# Demonstrates seasonality
-
-acf(rain_matrix[6,], lag.max=50, main="Midlands Region")
-# Demonstrates weak seasonality
-
-acf(rain_matrix[7,], lag.max=50, main="ACF, East Anglia Region")
-# Demonstrates weak seasonality
-
-acf(rain_matrix[8,], lag.max=50, main="ACF, S Wales & England SW Region")
-# Demonstrates seasonality
-
-acf(rain_matrix[9,], lag.max=50, main="ACF, England SE & Central South Region")
-# Demonstrates fairly weak seasonality
-
-acf(rain_matrix[10,], lag.max=50, main="ACF, N.Ireland Region")
-# Demonstrates fairly weak seasonality
-
-# Now look at monthly weather station data - take average across all stations
-acf(colMeans(station_matrix), lag.max=50, main="ACF, Selected UK Weather Stations")
-# Also demonstrates seasonality
-
-# Now look at the UK annual averages based on the weather station data
-acf(uk_station_annual_aves, main="ACF, Annual Average Rainfall for Selected UK Weather Stations")
-# Shows no statistically significant autocorrelation other than at lag=0, other than just barely significant (negative) autocorrelation at lag=12 (i.e. year 12)
-# Suggests that for the UK as a whole, average annual rainfall is random from one year to the next
-# Demonstrates stationarity
-
-# 3.2.2 Partial AutoCorrelation Factors
-
-# Examine Partial AutoCorrelation Factors for Scotland N region
-pacf(rain_matrix[1,], lag.max=50, main="PACF, Scotland N Region")
-# PACF is significant and positive at lags 12 and 24
-# PACF is significant and negative at lags 5,6, 18
-# Again demonstrates seasonality
-# Will need to include a seasonal autoregressive term in ARIMA/STARIMA
-
-pacf(uk_station_annual_aves, lag.max=50, main="PACF, Annual Average Rainfall for Selected UK Weather Stations")
-# No statistically significant PACF at any lags. Implies the data is random from one year to the next
-
-
-
-# 3.3 Spatio-Temporal Autocorrelation
+# 2.3.3 Spatio-Temporal Autocorrelation
 
 # Import starima_package
 source("starima_package.R")
-
-# Calculate spatio-temporal autocorrelation factors (stacf) using UK regional (areal) data (excluding N.Ireland)
-weight_matrix <- listw2mat(W)
-stacf(t(gb_rain_matrix), weight_matrix, 48)
-# Shows seasonal pattern with peaks at lag 1, 13, 25, 37
-# and troughs at lag 7, 19, 30, 43
-
-# Calculate spatio-temporal partial autocorrelation factors (stpacf) using UK regional (areal) data (excluding N.Ireland)
-stpacf(t(gb_rain_matrix), weight_matrix, 12)
-# stpacf is insignificant for all temporal lags - implies the data are essentially random
 
 # Attempt space-time semivariogram using UK weather station point data
 # Project points to get spatial lag in metres
@@ -566,81 +522,35 @@ plot(station_ST_var, wireframe=T)
 # But time and space are not the same thing so cannot directly compare these 'distances'
 
 
-## 4 STATISTICAL MODELLING OF TIME SERIES AND SPATIO-TEMPORAL SERIES
+## 3 STATISTICAL MODELLING OF TIME SERIES AND SPATIO-TEMPORAL SERIES
 
-# 4.1 Time Series Decomposition
+# 3.1 Time Series Decomposition
 
 # Use STL to decompose the Scotland N data
-# Choosing this dataset as it showed the greatest degree of seasonality from the ACF plots
-# Data shows seasonality: is therefore nonstationary
+# Choosing this dataset as it showed the highest levels of temporal autocorrelation
 # First, separate the Scotland N data from the rest of the UK rain data and convert to a time-series
-Scotland_N_timeseries <- ts(rain_matrix[1,], frequency = 12, start=c(1836,1))
+Scot_N_ts <- ts(rain_matrix[1,], frequency = 12, start=c(1836,1))
 
 # Then run stl function (t.window parameter should be odd or NULL)
-decom <- stl(Scotland_N_timeseries, t.window=NULL, s.window="periodic")
+decom <- stl(Scot_N_ts, t.window=NULL, s.window="periodic")
 autoplot(decom)
 # Hard to see due to length of timeseries
 
 # Try on shorter timeseries (1990-2021)
-Scotland_N_short_timeseries <- ts(rain_matrix[1,1849:2232], frequency = 12, start=c(1990,1))
-decom <- stl(Scotland_N_short_timeseries, t.window=NULL, s.window="periodic")
+Scot_N_sts <- ts(rain_matrix[1,1849:2232], frequency = 12, start=c(1990,1))
+decom <- stl(Scot_N_sts, t.window=25, s.window="periodic")
 autoplot(decom)
-# Various different values of t.window used to extract a trend. Settled for t.window=NULL as remainders smaller
+# Various different values of t.window used to extract a trend. Settled for t.window=25 as remainders smaller
 # Trend component not clear - may not need nonseasonal differencing; may only need to use seasonal differencing
-# Clear seasonality extracted through the stl decomposition process
-# Remainders still significant in size, typically ranging between -100mm and +100mm - larger than the seasonal component (which is actually smaller than the trend component based on the bars to the side of the plots)
-
-seasonal_decompose(Scotland_N_short_timeseries)
+# Clear seasonality extracted through the stl decomposition process, although seasonal component only ranges +/-60mm
+# Remainders still significant in size, typically ranging +/-100mm - larger than the seasonal component (which is actually smaller than the trend component based on the bars to the side of the plots)
 
 
-# 4.2 Differencing
-
-# No need to try differencing on annual data as already shown to be stationary
-# Try non-seasonal differencing on monthly Scotland N short timeseries
-p5 <- autoplot(Scotland_N_short_timeseries)
-p6 <- autoplot(diff(Scotland_N_short_timeseries))
-grid.arrange(p5,p6)
-# Hard to tell from this plot whether any trend or seasonality has been removed due to the sheer length of the dataset
-
-# Examine the ACF and PACF plots
-p7 <- autoplot(acf(Scotland_N_short_timeseries, plot=FALSE, main="ACF, Scotland N Undifferenced"))
-p8 <- autoplot(pacf(Scotland_N_short_timeseries, plot=FALSE, main="PACF, Scotland N Undifferenced"))
-p9 <- autoplot(acf(diff(Scotland_N_short_timeseries), plot=FALSE, main="ACF, Scotland N NonSeasonal Difference"))
-p10 <- autoplot(pacf(diff(Scotland_N_short_timeseries), plot=FALSE, main="PACF, Scotland N NonSeasonal Difference"))
-grid.arrange(p7,p8,p9,p10)
-# First difference (d=1) did not completely work as still have significant positive at lags 12 and 24 and some just about significant negatives at lags 6 and 18
-# Not surprising as data has been shown to have a seasonal pattern
-# Try seasonal differencing - need to use lag=12 as monthly data
-
-p11 <- autoplot(Scotland_N_short_timeseries, main="Undifferenced")
-p12 <- autoplot(diff(Scotland_N_short_timeseries), main="NonSeasonal Difference")
-p13 <- autoplot(diff(Scotland_N_short_timeseries, lag=12), main="Seasonal Difference")
-grid.arrange(p11,p12,p13)
-# Possible that NonSeasonal Differencing produces stationary series without having to do Seasonal Differencing, although ACF plots previously suggested that is not the case
-# Check ACF and PACF to see
-
-p14 <- autoplot(acf(Scotland_N_short_timeseries, plot=FALSE, main="ACF, Scotland N Undifferenced"))
-p15 <- autoplot(pacf(Scotland_N_short_timeseries, plot=FALSE, main="PACF, Scotland N Undifferenced"))
-p16 <- autoplot(acf(diff(Scotland_N_short_timeseries), plot=FALSE, main="ACF, Scotland N NonSeasonal Difference"))
-p17 <- autoplot(pacf(diff(Scotland_N_short_timeseries), plot=FALSE, main="PACF, Scotland N NonSeasonal Difference"))
-p18 <- autoplot(acf(diff(Scotland_N_short_timeseries, lag=12), plot=FALSE, main="ACF, Scotland N Seasonal Difference"))
-p19 <- autoplot(pacf(diff(Scotland_N_short_timeseries, lag=12), plot=FALSE, main="PACF, Scotland N Seasonal Difference"))
-grid.arrange(p14,p15,p16,p17,p18,p19)
-### THIS IS THE KEY PLOT AS HELPS DETERMINE WHETHER NEED NON-SEASONAL AND/OR SEASONAL DIFFERENCING
-# Still seeing significant ACF and PACF at lag 12 (albeit negative) in Seasonal Differenced plots
-# What is the implication of this?
-
-# Try seasonal and nonseasonal differencing together
-p20 <- autoplot(diff(diff(Scotland_N_short_timeseries, lag=12), lag=1), main="Combined Seasonal and NonSeasonal Difference")
-grid.arrange(p11,p12,p13,p20)
-# All the plots of differenced data look stationary
-# Need to look at other ways of doing ARIMA model diagnostics
-
-# 4.3 ARIMA
+# 3.2 ARIMA
 
 # Use the Box-Jenkins approach to ARIMA modelling
 
-# 4.3.1 Exploratory Data Analysis
+# 3.2.1 Exploratory Data Analysis
 
 # Have already performed this above
 # UK Regional rainfall data shows seasonality as it is presented as monthly, with no clear trend up or down over time
@@ -649,6 +559,71 @@ grid.arrange(p11,p12,p13,p20)
 # Lag plot for Scotland N region
 lag.plot(rain_matrix[1,], lags=12, do.lines=FALSE)
 # No clear patterns identified, which is a bit surprising considering seasonality already identified
+
+# 3.2.2 Differencing, AutoCorrelation and Partial Autocorrelation Factors
+
+# Examine the Scotland N time series and associated ACF
+autoplot(Scot_N_ts) + ggtitle("Scotland N timeseries 1836 to 2021")
+acf(rain_matrix[1,], lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Scotland N timeseries")
+# Using rain_matrix[1,] in the acf instead of the Scot_N_ts timeseries because timeseries frequency is 12 (months) and lags indices on x-axis therefore show for years, not months
+# ACF shows strong seasonal pattern with positive peaks at lags 0 (as per default), 12, 24, 36, 48 and negative peaks at lags 6, 18, 30, 42
+# Suggests seasonal differencing is required with an order of 12, which makes sense as this is monthly data
+
+# Seasonal differencing
+# Perform first seasonal differencing at lag 12 and re-run the ACF
+SN_s_diff <- diff(rain_matrix[1,], lag=12, differences=1)
+acf(SN_s_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Seasonally Differenced Scotland N timeseries")
+# Seasonal differencing has pretty much removed the seasonal pattern after lag 12
+# Fits description of "one or more spikes, rest essentially zero", which implies MA model
+# Significant autocorrelation remains at lags 1 and 12 (seasonal lag 1)
+
+# Now do PACF for seasonally differenced data
+pacf(SN_s_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of Seasonally Differenced Scotland N timeseries")
+# Significant PACF values seen at lags 1, 12 (seasonal lag 1), 24 (seasonal lag 2), 25, 36 (seasonal lag 3), 48 (seasonal lag 4)
+
+# Try non-seasonal differencing and re-run ACF and PACF
+SN_ns_diff <- diff(rain_matrix[1,])
+acf(SN_ns_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Non-Seasonally Differenced Scotland N timeseries")
+pacf(SN_ns_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of Non-Seasonally Differenced Scotland N timeseries")
+# ACF shows significant -ve ACF at lag 1 and +ve ACF at lags 12, 24, 36 which suggests seasonal pattern remains
+# PACF shows significant -ve PACF at lag 1, which slowly decays to insignificant values
+
+# Try seasonal and nonseasonal differencing together
+SN_sns_diff <- diff(diff(rain_matrix[1,], lag=12), lag=1)
+acf(SN_sns_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Non-Seasonally and Seasonally Differenced Scotland N timeseries")
+pacf(SN_sns_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of NonSeasonally and Seasonally Differenced Monthly Rainfall for Scotland N Region")
+
+
+
+
+# Examine the ACF and PACF plots together
+p5 <- autoplot(acf(SN_s_diff, lag.max=36, plot=FALSE)) + ggtitle("ACF, Scotland N Seasonally Differenced")
+p6 <- autoplot(pacf(SN_s_diff, lag.max=36, plot=FALSE)) + ggtitle("PACF, Scotland N Seasonally Differenced")
+p7 <- autoplot(acf(SN_ns_diff, lag.max=36, plot=FALSE)) + ggtitle("ACF, Scotland N NonSeasonally Differenced")
+p8 <- autoplot(pacf(SN_ns_diff, lag.max=36, plot=FALSE)) + ggtitle("PACF, Scotland N NonSeasonally Differenced")
+p9 <- autoplot(acf(SN_sns_diff, lag.max=36, plot=FALSE)) + ggtitle("ACF, Scotland N Seasonally and NonSeasonally Differenced")
+p10 <- autoplot(pacf(SN_sns_diff, lag.max=36, plot=FALSE)) + ggtitle("PACF, Scotland N Seasonally and NonSeasonally Differenced")
+grid.arrange(p5,p6,p7,p8,p9,p10)
+
+
+pacf(uk_station_annual_aves, lag.max=36, main="PACF, Annual Average Rainfall for Selected UK Weather Stations")
+# No statistically significant PACF at any lags. Implies the data is random from one year to the next
+
+
+# 3.2.2.1 Spatio-Temporal ACF and PACF
+
+# Calculate spatio-temporal autocorrelation factors (stacf) using UK regional (areal) data (excluding N.Ireland)
+weight_matrix <- listw2mat(W)
+stacf(t(gb_rain_matrix), weight_matrix, 48)
+# Shows seasonal pattern with peaks at lag 1, 13, 25, 37
+# and troughs at lag 7, 19, 30, 43
+
+# Calculate spatio-temporal partial autocorrelation factors (stpacf) using UK regional (areal) data (excluding N.Ireland)
+stpacf(t(gb_rain_matrix), weight_matrix, 12)
+# stpacf is insignificant for all temporal lags - implies the data are essentially random
+
+
+# 3.2.3. Parameter Estimation and Fitting
 
 # ACF for Scotland N showed seasonality with a seasonal component of order 12, being the 12 months of the year
 acf(rain_matrix[1,], lag.max=50, main="AutoCorrelation Plot of Monthly Rainfall for Scotland N Region")
@@ -671,13 +646,8 @@ acf(SN_diff, lag.max=50, xlab="Lag", ylab="ACF", main="Seasonally Differenced AC
 pacf(SN_diff, lag.max=50, xlab="Lag", ylab="PACF", main="Seasonally Differenced PACF Plot of Monthly Rainfall for Scotland N Region")
 # Significant PACF values seen at lags 1, 12, 24, 25, 36, 48
 # Suggests 2 or 3 or more seasonal AR terms? Try 2 and see what happens
-# This would give ARIMA(1,0,1)(2,1,1)12
-
-# 4.3.2. Parameter Estimation and Fitting
-
-?arima
-# Train over first 176 years, test over last 10 years
-fit.ar <- arima(rain_matrix[1,1:2112], order=c(1,0,1), seasonal=list(order=c(2,1,1), period=12))
+# This would give ARIMA(1,0,1)(2,1,1)12# Train over first 176 years, test over last 10 years
+fit.ar <- arima(rain_matrix[1,1:2112], order=c(0,1,2), seasonal=list(order=c(0,1,1), period=12))
 fit.ar
 # Gives sigma^2 of 2405, log likelihood of -11169.6, aic of 22351.21
 # Running other models does not give better results
@@ -702,7 +672,6 @@ fit.Ar
 pre.Ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=fit.Ar)
 matplot(cbind(pre.Ar$fitted, pre.Ar$x), type="l")
 
-?auto.arima
 
 # Have a look at auto.ar to see what it gives as a suggested ARIMA model and compare with my model
 # Adapted from https://medium.com/analytics-vidhya/sarima-forecasting-seasonal-data-with-python-and-r-2e7472dfad83
