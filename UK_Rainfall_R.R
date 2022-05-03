@@ -562,38 +562,35 @@ lag.plot(rain_matrix[1,], lags=12, do.lines=FALSE)
 
 # 3.2.2 Differencing, AutoCorrelation and Partial Autocorrelation Factors
 
-# Examine the Scotland N time series and associated ACF
-autoplot(Scot_N_ts) + ggtitle("Scotland N timeseries 1836 to 2021")
-acf(rain_matrix[1,], lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Scotland N timeseries")
-# Using rain_matrix[1,] in the acf instead of the Scot_N_ts timeseries because timeseries frequency is 12 (months) and lags indices on x-axis therefore show for years, not months
+# Examine the Scotland N time series and associated ACF and PACF
+# ggtsdisplay function sourced from Hyndman and Athanasopoulos (2018) Forecasting: Principles and Practice, 2nd Ed. otexts.com/fpp2/
+ggtsdisplay(Scot_N_sts, main="Scotland N timeseries 1990 to 2021")
 # ACF shows strong seasonal pattern with positive peaks at lags 0 (as per default), 12, 24, 36, 48 and negative peaks at lags 6, 18, 30, 42
 # Suggests seasonal differencing is required with an order of 12, which makes sense as this is monthly data
 
 # Seasonal differencing
-# Perform first seasonal differencing at lag 12 and re-run the ACF
-SN_s_diff <- diff(rain_matrix[1,], lag=12, differences=1)
-acf(SN_s_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Seasonally Differenced Scotland N timeseries")
+# Perform first seasonal differencing at lag 12, plot the differenced data and re-run the ACF and PACF
+SN_s_diff <- diff(Scot_N_sts, lag=12)
+ggtsdisplay(SN_s_diff, main="Scotland N Seasonally Differenced")
 # Seasonal differencing has pretty much removed the seasonal pattern after lag 12
 # Fits description of "one or more spikes, rest essentially zero", which implies MA model
-# Significant autocorrelation remains at lags 1 and 12 (seasonal lag 1)
-
-# Now do PACF for seasonally differenced data
-pacf(SN_s_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of Seasonally Differenced Scotland N timeseries")
-# Significant PACF values seen at lags 1, 12 (seasonal lag 1), 24 (seasonal lag 2), 25, 36 (seasonal lag 3), 48 (seasonal lag 4)
+# Significant autocorrelation remains at lags 1 and 12 (seasonal lag 1), which suggests Q=1 and potentially q=1
+# Significant PACF values seen at lag 1 and seasonal lags 1, 2, 3 - potentially suggests p=1?
 
 # Try non-seasonal differencing and re-run ACF and PACF
-SN_ns_diff <- diff(rain_matrix[1,])
-acf(SN_ns_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Non-Seasonally Differenced Scotland N timeseries")
-pacf(SN_ns_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of Non-Seasonally Differenced Scotland N timeseries")
-# ACF shows significant -ve ACF at lag 1 and +ve ACF at lags 12, 24, 36 which suggests seasonal pattern remains
-# PACF shows significant -ve PACF at lag 1, which slowly decays to insignificant values
+SN_ns_diff <- diff(Scot_N_sts)
+ggtsdisplay(SN_ns_diff, main="Scotland N Non-Seasonally Differenced")
+# ACF shows significant -ve ACF at lag 1, 6, 18 and +ve ACF at lags 12, 24, which suggests seasonal pattern remains
+# This suggests non-seasonal differencing alone does not lead to stationarity
+# PACF shows significant -ve PACF at lag 1, which slowly decays to insignificant values, indicative of an MA model (q=1)
 
 # Try seasonal and nonseasonal differencing together
-SN_sns_diff <- diff(diff(rain_matrix[1,], lag=12), lag=1)
-acf(SN_sns_diff, lag.max=36, xlab="Lag", ylab="ACF", main="ACF Plot of Non-Seasonally and Seasonally Differenced Scotland N timeseries")
-pacf(SN_sns_diff, lag.max=36, xlab="Lag", ylab="PACF", main="PACF Plot of NonSeasonally and Seasonally Differenced Monthly Rainfall for Scotland N Region")
+SN_sns_diff <- diff(diff(Scot_N_sts, lag=12))
+ggtsdisplay(SN_sns_diff, main="Scotland N Non-Seasonally and Seasonally Differenced")
+# ACF shows spikes at lag 1, 11, 13 and seasonal lag 1
+# PACF shows exponential decay of -ve values for non-seasonal lags and +ve values for seasonal lags-1
 
-
+# Seasonal differencing on its own seems to provide the clearest suggestions for a seasonal ARIMA model
 
 
 # Examine the ACF and PACF plots together
@@ -606,8 +603,6 @@ p10 <- autoplot(pacf(SN_sns_diff, lag.max=36, plot=FALSE)) + ggtitle("PACF, Scot
 grid.arrange(p5,p6,p7,p8,p9,p10)
 
 
-pacf(uk_station_annual_aves, lag.max=36, main="PACF, Annual Average Rainfall for Selected UK Weather Stations")
-# No statistically significant PACF at any lags. Implies the data is random from one year to the next
 
 
 # 3.2.2.1 Spatio-Temporal ACF and PACF
@@ -623,81 +618,139 @@ stpacf(t(gb_rain_matrix), weight_matrix, 12)
 # stpacf is insignificant for all temporal lags - implies the data are essentially random
 
 
+
+
 # 3.2.3. Parameter Estimation and Fitting
 
-# ACF for Scotland N showed seasonality with a seasonal component of order 12, being the 12 months of the year
-acf(rain_matrix[1,], lag.max=50, main="AutoCorrelation Plot of Monthly Rainfall for Scotland N Region")
-
-# Perform seasonal differencing and re-run the ACF
-SN_diff <- diff(rain_matrix[1,], lag=12, differences=1)
-acf(SN_diff, lag.max=50, xlab="Lag", ylab="ACF", main="Seasonally Differenced ACF Plot of Monthly Rainfall for Scotland N Region")
-# Seasonal differencing has pretty much removed the seasonal pattern after lag 12
-# Fits description of "one or more spikes, rest essentially zero"
-# Significant autocorrelation remains at lags 1 and 12
-# MA order identified by where plot becomes zero. Only have 1 significant lag at lag=1, therefore q = 1
-
-# This implies a model of ARIMA(0,0,1)(0,1,1)12
-# q=1 for non-seasonal MA due to only 1 significant lag in seasonally differenced ACF
-# Q=1 for seasonal MA as only have 1 significant lag at lag=12 and nothing at e.g. lag=24 or 36
-# D=1 as only used 1 difference in seasonal differencing
+# Analysis of ACF and PACF following seasonal differencing suggests a model of ARIMA(0,0,1)(0,1,1)12
+# q=1 for non-seasonal MA due to significant lag at lag 1 in seasonally differenced ACF
+# Q=1 for seasonal MA due to significant lag at seasonal lag 1 (lag 12) and nothing at e.g. lag=24 or 36
+# D=1 as used 1 difference in seasonal differencing
 # m=12 as monthly data
 
-# Now do PACF for seasonally differenced data
-pacf(SN_diff, lag.max=50, xlab="Lag", ylab="PACF", main="Seasonally Differenced PACF Plot of Monthly Rainfall for Scotland N Region")
-# Significant PACF values seen at lags 1, 12, 24, 25, 36, 48
-# Suggests 2 or 3 or more seasonal AR terms? Try 2 and see what happens
-# This would give ARIMA(1,0,1)(2,1,1)12# Train over first 176 years, test over last 10 years
-fit.ar <- arima(rain_matrix[1,1:2112], order=c(0,1,2), seasonal=list(order=c(0,1,1), period=12))
-fit.ar
-# Gives sigma^2 of 2405, log likelihood of -11169.6, aic of 22351.21
-# Running other models does not give better results
-# In fact this seems to be the only model with a seasonal component that runs without error
-# Running ARIMA(1,0,1)(3,1,1)12 gives an error
-# Running ARIMA(1,0,1)(1,1,1)12 gives NaNs
-# Running ARIMA(2,0,1)(2,1,1)12 gives NaNs
-
-NRMSE_fit <- NRMSE(res=fit.ar$residuals, obs=rain_matrix[1,1:2112])
-NRMSE_fit
-# gives figure of 0.8485827
-
-tsdiag(fit.ar)
-
-pre.ar <- predict(fit.ar, n.ahead=12)
-matplot(1:12, cbind(rain_matrix[1,2113:2124], pre.ar$pred), type="l", main="", xlab="Month", ylab="Rainfall in mm")
-# Black line is actual, red-dashed line is prediction
-
-fit.Ar <- Arima(rain_matrix[1,1:2112], order=c(1,0,1), seasonal=list(order=c(2,1,1), period=12))
+# Using Arima function instead of arima function based on recommendation in Hyndman and Athanasopoulos
+fit.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(0,1,1), period=12))
 fit.Ar
+# Gives log likelihood of -11815.62, AICc of 23637.25 
 
-pre.Ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=fit.Ar)
-matplot(cbind(pre.Ar$fitted, pre.Ar$x), type="l")
+NRMSE_fit <- NRMSE(res=fit.Ar$residuals, obs=rain_matrix[1,1:2112])
+NRMSE_fit
+# gives figure of 0.8521664
+
+# 3.2.4 Diagnostic Checking
+
+# Check the residuals to see if any autocorrelations remain
+checkresiduals(fit.Ar)
+# Autocorrelations are within threshold limits - No significant ACF, except at lag 18 - good - but perhaps could be better
+# Residuals appear normally distributed - good
+# p-value of 0.5426 (>0.05) - good
+
+tsdiag(fit.Ar)
+# p values in Ljung-Box plot are all significant, which is good
+
+
+# Before moving to prediction, check if there are any other models that yield better results
+# As initial model but add a non-seasonal AR component
+fit2.Ar <- Arima(rain_matrix[1,], order=c(1,0,1), seasonal=list(order=c(0,1,1), period=12))
+fit2.Ar
+checkresiduals(fit2.Ar)
+# Results similar to initial model
+# Significant ACF at lag 18
+
+# As initial model but add a seasonal AR component
+fit3.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(1,1,1), period=12))
+fit3.Ar
+checkresiduals(fit3.Ar)
+# Based on AICc, this performs better than initial model
+# Significant ACF at lag 18
+
+# As last (best so far) model but add a second seasonal AR component
+fit4.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(2,1,1), period=12))
+fit4.Ar
+checkresiduals(fit4.Ar)
+# Better AICc value again, p-value deteriorating, but still >0.05
+# Significant ACF at lag 18
+
+# As last (best so far) model but add a non-seasonal AR component
+fit5.Ar <- Arima(rain_matrix[1,], order=c(1,0,1), seasonal=list(order=c(2,1,1), period=12))
+fit5.Ar
+checkresiduals(fit5.Ar)
+# Based on AICc, not as good as last model and p-value reducing further
+# Significant ACF at lag 18
+# Also get warning of NaNs for some of the coefficients
+
+# As best so far model but add a non-seasonal AR component instead of non-seasonal MA component
+fit6.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(2,1,1), period=12))
+fit6.Ar
+checkresiduals(fit6.Ar)
+# Almost identical to fit4. AICc is 0.01 lower, which makes it very marginally better
+# Significant ACF at lag 18
+
+# As last model but remove seasonal AR components
+fit7.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(0,1,1), period=12))
+fit7.Ar
+checkresiduals(fit7.Ar)
+# Not as good as fit4 or fit6 or initial model
+# Significant ACF at lag 18
+
+# As last model but add back a seasonal AR component
+fit8.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(1,1,1), period=12))
+fit8.Ar
+checkresiduals(fit8.Ar)
+# Similar to fit4, but not as good as fit5 or fit7
+# Significant ACF at lag 18
+
+
+
+# 3.2.5 Prediction
+
+# Train over first 176 years, test over last 10 years, using best fit model fit6.Ar
+train.Ar <- Arima(rain_matrix[1,1:2112], order=c(1,0,0), seasonal=list(order=c(2,1,1), period=12))
+pred.Ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=train.Ar)
+par(mar = c(5, 5, 4, 2) + 0.1)
+matplot(cbind(pred.Ar$fitted, pred.Ar$x), type="l", xlab="months", ylab="Rainfall (mm)", main="ARIMA Prediction vs. Actuals for Scotland N, 2011 to 2021")
+# Black line is prediction, red-dashed line is actuals
+# Results pretty good for the first year or so, but then it breaks down somewhat
+# Overall shape fairly accurate but looks like there is a trend to the amplitude of the seasonal peaks that increases in the first few years and then gradually decreases
 
 
 # Have a look at auto.ar to see what it gives as a suggested ARIMA model and compare with my model
-# Adapted from https://medium.com/analytics-vidhya/sarima-forecasting-seasonal-data-with-python-and-r-2e7472dfad83
-fit.auto.ar <- auto.arima(rain_matrix[1,1:2112], trace=TRUE, test="kpss", ic="bic")
+# Adapted from Hyndman and Athanasopoulos
+fit.auto.ar <- auto.arima(rain_matrix[1,], seasonal=TRUE, stepwise=FALSE, approximation=FALSE)
 fit.auto.ar
-# Auto.ar gives "ARIMA(1,1,0) with drift"
-# Interestingly this didn't try any seasonal ARIMA terms
+# Gives "ARIMA(3,1,2)"
+# No seasonal component, which is strange as function settings specifically allow seasonal models
+# Can't compare AICc due to different differencing component, but can check residuals
+checkresiduals(fit2.auto.ar)
+# This model fails the checks due to significant ACF spikes, which look seasonal, and p-value is <<0.05
+# Perhaps the seasonality was too weak to be picked up and first differencing achieved the necessary stationarity for the auto.Arima function to not need to look at seasonal differencing?
+# This suggests that finding the right model is not straightforward
 
-# Check what forecast versus actuals looks like
+
+# Check what forecast versus actuals looks like for auto.arima results
 pre.auto.ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=fit.auto.ar)
-matplot(cbind(pre.auto.ar$fitted, pre.auto.ar$x), type="l")
+matplot(cbind(pre.auto.ar$fitted, pre.auto.ar$x), type="l", xlab="months", ylab="Rainfall (mm)", main="Auto.ARIMA Prediction vs. Actuals for Scotland N, 2011 to 2021")
 # Black line is prediction, red-dashed line is actuals
-# Gives a close fit in terms of shape, but prediction seems to be 1 or 2 steps behind actual??
+# Prediction seems to underestimate the amplitude of the seasonal variance, with lower peak rainfall levels in winter, and higher rainfall lows in the summer
+
 
 
 
 ## 5 ARTIFICIAL NEURAL NETWORKS
 
 # Use rain_matrix created earlier
+# Create a Y dataset with one-month lag
 X <- t(as.matrix(rain_matrix))
 Y <- as.matrix(X[-1,])
 
 # Training on first 80% of data (0.8*2232 = 1785.6 = 1786)
-rain.nnet <- nnet(X[1:1786, 1:10], Y[1:1786, 1:10], decay=1e-6, linout=TRUE, size=2)
+# Using same approach as for temp data used in class tutorial
+# Doing regression so linout (linear output) is TRUE
+rain.nnet <- nnet(X[1:1786, 1:10], Y[1:1786, 1:10], decay=5e-6, linout=TRUE, size=6)
+
+# Take a look at the fitted values
 rain.nnet["fitted.values"]
-# All values seem to be constant or one of two fixed values within a narrow range - no seasonality
+# For each region, all values seem to be constant or one of two fixed values within a narrow range - no seasonality
 
 # Run the prediction on the remaining 20% of data (445 months)
 # Y data set finishes at 2231 as there is one less month of data in Y compared to X
@@ -710,13 +763,22 @@ rain.pred
 matplot(cbind(Y[1787:2231,1], rain.pred[,1]), ylab="Monthly average rainfall", xlab="Time (in months)", main="Scotland N", type="l")
 # Looks bad
 # Possible explanations - wrong parameters - have tried many different combinations of decay and size, to no avail - tried mygrid approach from tutorial but suspect that only works with regression rather than time-series
-# Try expand.grid from (regression) tutorial to determine optimal parameter settings
+# Is dataset too large?
 
 
-mygrid <- expand.grid(.decay=c(0.5, 0.1, 0.01, 1e-3, 1e-4, 1e-5, 1e-6), .size=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+# Try nnetar() adapted from Hyndman and Athanasopoulos, as this can automatically select the number of lagged inputs and the number of neurons in the hidden layer
+# nnetar() will also add a seasonal lag component if seasonality is identified
+# set lambda to zero to force positive values (cannot have -ve rainfall!)
+# Use Scotland N regional data
+rain.fit <- nnetar(rain_matrix[1,], lambda=0)  # this takes quite a long time
+autoplot(forecast(fit, h=30))
+# This uses a NNAR(29,15) model
+# Looks better than nnet() results above, but dataset too long to really see, so try with shorter timeseries
 
-rain.nnet.parameters <- train(Y, data=X, method="nnet", metric="Rsquared", maxit=100, tuneGrid=mygrid, trace=F)
+# Using a reduced timeseries of 360 months for Scotland N
+rain.fit <- nnetar(rain_matrix[1,1873:2232], lambda=0)
+autoplot(forecast(rain.fit, h=50))
+# Uses an NNAR(18,10) model and results look encouraging
+# Amplitude of seasonal variance possible underestimated compared to historic actuals
+# This forecasts out 50 months from end of timeseries, so not able to compate prediction with actuals
 
-?rnn
-
-train <- trainr(Y[1:1786, 1], X[1:1786, 1], learningrate = 0.1)
