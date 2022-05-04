@@ -1,7 +1,13 @@
+
+
+### The R Project for this assignment, which includes this R script and all relevant data files, can be found in the following GitHub repository:
+### https://github.com/rubble35/STDM-coursework
+
+
+
 # Install packages and libraries
 install.packages("maptools")
 install.packages("forecast")
-install.packages("rnn")
 
 
 library(sp)
@@ -22,9 +28,6 @@ library(raster)
 library(spacetime)
 library(forecast)
 library(nnet)
-library(caret)
-library(rnn)
-
 
 
 
@@ -35,6 +38,8 @@ library(rnn)
 # Dataset being used is monthly rainfall records for the UK sourced from the UK Met Office.
 # This data was recently updated as a result of the crowdsourcing project 'Rainfall Rescue'.
 # The period covered is January 1836 to December 2021.
+
+## THIS IS A LARGE DATASET THAT TAKES SOME TIME TO LOAD ##
 
 # Read geodatabase and set CRS using a proj4string
 uk_rain_raw <- readOGR(dsn="Data/UK Rainfall.gdb", layer="uk_rain_all_districts", 
@@ -230,7 +235,7 @@ heatmap(station_latorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="colu
 station_longorder <- uk_station[order(uk_station$LONG, decreasing=TRUE),]
 station_longorder_matrix <- data.matrix(station_longorder[,5:ncol(uk_station)])
 heatmap(station_longorder_matrix,Rowv=NA,Colv=NA, col=cm.colors(256), scale="column", margins=c(5,3), xlab="MMM.YY", ylab="Station (W at the top, E at the bottom)", main="Heatmap of Rainfall at UK Weather Stations, Ordered by Longitude",cexCol=1.1, y.scale.components.subticks(n=10))
-# Less obvious than latitude heat map, but suggests pinker colours (most rainfall) at the bottom (lowest longitudes), i.e. furthest west
+# Less obvious than latitude heat map, but suggests pinker colours (most rainfall) at the top (lowest longitudes), i.e. furthest west
 # Station 12 is a bit of an anomaly (this is Lerwick, the furthest north by far in the Shetlands)
 # Suggests latitude is more of a factor that longitude, but this might be expected as UK has a greater N/S extent than E/W
 
@@ -445,7 +450,7 @@ EENE_r <- round(cor(England_E_NE_lagged$t, England_E_NE_lagged$t_minus_1), 3) # 
 EWNW_r <- round(cor(England_NW_N_Wales_lagged$t, England_NW_N_Wales_lagged$t_minus_1), 3) # gives 0.180
 M_r <- round(cor(Midlands_lagged$t, Midlands_lagged$t_minus_1), 3)  # gives 0.081
 EA_r <- round(cor(East_Anglia_lagged$t, East_Anglia_lagged$t_minus_1), 3) # gives 0.103
-EWSW_r <- round(cor(S_Wales_England_SW_lagged$t, S_Wales_England_SW_lagged$t_minus_1), 3) # gives 0.1178
+EWSW_r <- round(cor(S_Wales_England_SW_lagged$t, S_Wales_England_SW_lagged$t_minus_1), 3) # gives 0.178
 ESE_r <- round(cor(England_SE_lagged$t, England_SE_lagged$t_minus_1), 3)  # gives 0.127
 NI_r <- round(cor(N_Ireland_lagged$t, N_Ireland_lagged$t_minus_1), 3) # gives 0.135
 
@@ -622,7 +627,7 @@ stpacf(t(gb_rain_matrix), weight_matrix, 12)
 
 # 3.2.3. Parameter Estimation and Fitting
 
-# Analysis of ACF and PACF following seasonal differencing suggests a model of ARIMA(0,0,1)(0,1,1)12
+# Analysis of ACF and PACF following seasonal differencing suggests a model of ARIMA(0,0,1)(0,1,1)12 for Scotland N region
 # q=1 for non-seasonal MA due to significant lag at lag 1 in seasonally differenced ACF
 # Q=1 for seasonal MA due to significant lag at seasonal lag 1 (lag 12) and nothing at e.g. lag=24 or 36
 # D=1 as used 1 difference in seasonal differencing
@@ -633,9 +638,9 @@ fit.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(0,1,1), p
 fit.Ar
 # Gives log likelihood of -11815.62, AICc of 23637.25 
 
-NRMSE_fit <- NRMSE(res=fit.Ar$residuals, obs=rain_matrix[1,1:2112])
+NRMSE_fit <- NRMSE(res=fit.Ar$residuals, obs=rain_matrix[1,])
 NRMSE_fit
-# gives figure of 0.8521664
+# gives figure of 0.84564
 
 # 3.2.4 Diagnostic Checking
 
@@ -646,7 +651,7 @@ checkresiduals(fit.Ar)
 # p-value of 0.5426 (>0.05) - good
 
 tsdiag(fit.Ar)
-# p values in Ljung-Box plot are all significant, which is good
+# p values in Ljung-Box plot are all large, which suggests no significant lack of fit
 
 
 # Before moving to prediction, check if there are any other models that yield better results
@@ -654,6 +659,7 @@ tsdiag(fit.Ar)
 fit2.Ar <- Arima(rain_matrix[1,], order=c(1,0,1), seasonal=list(order=c(0,1,1), period=12))
 fit2.Ar
 checkresiduals(fit2.Ar)
+NRMSE_fit2 <- NRMSE(res=fit2.Ar$residuals, obs=rain_matrix[1,])
 # Results similar to initial model
 # Significant ACF at lag 18
 
@@ -661,6 +667,7 @@ checkresiduals(fit2.Ar)
 fit3.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(1,1,1), period=12))
 fit3.Ar
 checkresiduals(fit3.Ar)
+NRMSE_fit3 <- NRMSE(res=fit3.Ar$residuals, obs=rain_matrix[1,])
 # Based on AICc, this performs better than initial model
 # Significant ACF at lag 18
 
@@ -668,6 +675,7 @@ checkresiduals(fit3.Ar)
 fit4.Ar <- Arima(rain_matrix[1,], order=c(0,0,1), seasonal=list(order=c(2,1,1), period=12))
 fit4.Ar
 checkresiduals(fit4.Ar)
+NRMSE_fit4 <- NRMSE(res=fit4.Ar$residuals, obs=rain_matrix[1,])
 # Better AICc value again, p-value deteriorating, but still >0.05
 # Significant ACF at lag 18
 
@@ -675,6 +683,7 @@ checkresiduals(fit4.Ar)
 fit5.Ar <- Arima(rain_matrix[1,], order=c(1,0,1), seasonal=list(order=c(2,1,1), period=12))
 fit5.Ar
 checkresiduals(fit5.Ar)
+NRMSE_fit5 <- NRMSE(res=fit5.Ar$residuals, obs=rain_matrix[1,])
 # Based on AICc, not as good as last model and p-value reducing further
 # Significant ACF at lag 18
 # Also get warning of NaNs for some of the coefficients
@@ -683,6 +692,7 @@ checkresiduals(fit5.Ar)
 fit6.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(2,1,1), period=12))
 fit6.Ar
 checkresiduals(fit6.Ar)
+NRMSE_fit6 <- NRMSE(res=fit6.Ar$residuals, obs=rain_matrix[1,])
 # Almost identical to fit4. AICc is 0.01 lower, which makes it very marginally better
 # Significant ACF at lag 18
 
@@ -690,13 +700,16 @@ checkresiduals(fit6.Ar)
 fit7.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(0,1,1), period=12))
 fit7.Ar
 checkresiduals(fit7.Ar)
+NRMSE_fit7 <- NRMSE(res=fit7.Ar$residuals, obs=rain_matrix[1,])
 # Not as good as fit4 or fit6 or initial model
 # Significant ACF at lag 18
+# Almost identical diagnostic results as initial model, which suggests non-seasonal AR or non-seasonal MA makes little difference
 
 # As last model but add back a seasonal AR component
 fit8.Ar <- Arima(rain_matrix[1,], order=c(1,0,0), seasonal=list(order=c(1,1,1), period=12))
 fit8.Ar
 checkresiduals(fit8.Ar)
+NRMSE_fit8 <- NRMSE(res=fit8.Ar$residuals, obs=rain_matrix[1,])
 # Similar to fit4, but not as good as fit5 or fit7
 # Significant ACF at lag 18
 
@@ -721,22 +734,28 @@ fit.auto.ar
 # Gives "ARIMA(3,1,2)"
 # No seasonal component, which is strange as function settings specifically allow seasonal models
 # Can't compare AICc due to different differencing component, but can check residuals
-checkresiduals(fit2.auto.ar)
+checkresiduals(fit.auto.ar)
+tsdiag(fit.auto.ar)
+NRMSE_fit.auto.ar <- NRMSE(res=fit.auto.ar$residuals, obs=rain_matrix[1,])
 # This model fails the checks due to significant ACF spikes, which look seasonal, and p-value is <<0.05
+# Ljung-Box plot from tsdiag shows p-values are pretty much all significant (i.e. <0.05)
+# NRMSE is 0.92012, which is higher than any of the manual models tested
 # Perhaps the seasonality was too weak to be picked up and first differencing achieved the necessary stationarity for the auto.Arima function to not need to look at seasonal differencing?
 # This suggests that finding the right model is not straightforward
 
 
+# Use auto.arima on training set and then use to predict
 # Check what forecast versus actuals looks like for auto.arima results
-pre.auto.ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=fit.auto.ar)
-matplot(cbind(pre.auto.ar$fitted, pre.auto.ar$x), type="l", xlab="months", ylab="Rainfall (mm)", main="Auto.ARIMA Prediction vs. Actuals for Scotland N, 2011 to 2021")
+train.auto.ar <- Arima(rain_matrix[1,1:2112], order=c(3,1,2))
+pred.auto.ar <- Arima(rain_matrix[1,2113:ncol(rain_matrix)], model=train.auto.ar)
+matplot(cbind(pred.auto.ar$fitted, pred.auto.ar$x), type="l", xlab="months", ylab="Rainfall (mm)", main="Auto.ARIMA Prediction vs. Actuals for Scotland N, 2011 to 2021")
 # Black line is prediction, red-dashed line is actuals
 # Prediction seems to underestimate the amplitude of the seasonal variance, with lower peak rainfall levels in winter, and higher rainfall lows in the summer
 
 
 
 
-## 5 ARTIFICIAL NEURAL NETWORKS
+## 4 ARTIFICIAL NEURAL NETWORKS
 
 # Use rain_matrix created earlier
 # Create a Y dataset with one-month lag
@@ -746,7 +765,7 @@ Y <- as.matrix(X[-1,])
 # Training on first 80% of data (0.8*2232 = 1785.6 = 1786)
 # Using same approach as for temp data used in class tutorial
 # Doing regression so linout (linear output) is TRUE
-rain.nnet <- nnet(X[1:1786, 1:10], Y[1:1786, 1:10], decay=5e-6, linout=TRUE, size=6)
+rain.nnet <- nnet(X[1:1786, 1:10], Y[1:1786, 1:10], decay=1e-4, linout=TRUE, size=10)
 
 # Take a look at the fitted values
 rain.nnet["fitted.values"]
@@ -771,7 +790,7 @@ matplot(cbind(Y[1787:2231,1], rain.pred[,1]), ylab="Monthly average rainfall", x
 # set lambda to zero to force positive values (cannot have -ve rainfall!)
 # Use Scotland N regional data
 rain.fit <- nnetar(rain_matrix[1,], lambda=0)  # this takes quite a long time
-autoplot(forecast(fit, h=30))
+autoplot(forecast(rain.fit, h=30))
 # This uses a NNAR(29,15) model
 # Looks better than nnet() results above, but dataset too long to really see, so try with shorter timeseries
 
@@ -780,5 +799,6 @@ rain.fit <- nnetar(rain_matrix[1,1873:2232], lambda=0)
 autoplot(forecast(rain.fit, h=50))
 # Uses an NNAR(18,10) model and results look encouraging
 # Amplitude of seasonal variance possible underestimated compared to historic actuals
-# This forecasts out 50 months from end of timeseries, so not able to compate prediction with actuals
+# This forecasts out 50 months into the future from end of timeseries, so not able to compare prediction with actuals
+
 
